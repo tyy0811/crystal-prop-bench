@@ -22,7 +22,6 @@ from crystal_prop_bench.evaluation.domain_shift import compute_degradation_ratio
 from crystal_prop_bench.evaluation.metrics import (
     aggregate_seeds,
     compute_metrics,
-    compute_per_family_metrics,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -30,12 +29,6 @@ logger = logging.getLogger(__name__)
 
 PREDICTIONS_DIR = Path("results/predictions")
 TABLES_DIR = Path("results/tables")
-
-
-def load_predictions(pattern: str) -> list[pd.DataFrame]:
-    """Load all prediction files matching a glob pattern."""
-    files = sorted(PREDICTIONS_DIR.glob(pattern))
-    return [pd.read_parquet(f) for f in files]
 
 
 def build_benchmark_table(config: dict) -> pd.DataFrame:

@@ -27,24 +27,28 @@ class TestIntegration:
         features = fixture_magpie_features
         target = "formation_energy_per_atom"
 
-        # Split
-        train_df, cal_df, test_df = standard_split(df, seed=42)
+        # Split (4-way: train/val/cal/test)
+        train_df, val_df, cal_df, test_df = standard_split(df, seed=42)
 
         # Align features
         feature_cols = [c for c in features.columns if c != "material_id"]
 
         train_m = train_df.merge(features, on="material_id")
+        val_m = val_df.merge(features, on="material_id")
         cal_m = cal_df.merge(features, on="material_id")
         test_m = test_df.merge(features, on="material_id")
 
         assert len(train_m) > 0
+        assert len(val_m) > 0
         assert len(cal_m) > 0
         assert len(test_m) > 0
 
-        # Train
+        # Train (val for early stopping, cal for conformal only)
         model, cal_residuals = train_lgbm(
             train_m[feature_cols].values,
             train_m[target].values,
+            val_m[feature_cols].values,
+            val_m[target].values,
             cal_m[feature_cols].values,
             cal_m[target].values,
             seed=42,
@@ -87,13 +91,15 @@ class TestIntegration:
 
         seed_results = []
         for seed in [42, 123]:
-            train_df, cal_df, test_df = standard_split(df, seed=seed)
+            train_df, val_df, cal_df, test_df = standard_split(df, seed=seed)
             train_m = train_df.merge(features, on="material_id")
+            val_m = val_df.merge(features, on="material_id")
             cal_m = cal_df.merge(features, on="material_id")
             test_m = test_df.merge(features, on="material_id")
 
             model, _ = train_lgbm(
                 train_m[feature_cols].values, train_m[target].values,
+                val_m[feature_cols].values, val_m[target].values,
                 cal_m[feature_cols].values, cal_m[target].values,
                 seed=seed,
             )

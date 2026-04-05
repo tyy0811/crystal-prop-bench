@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 def train_lgbm(
     X_train: np.ndarray,
     y_train: np.ndarray,
+    X_val: np.ndarray,
+    y_val: np.ndarray,
     X_cal: np.ndarray,
     y_cal: np.ndarray,
     seed: int = 42,
@@ -29,7 +31,9 @@ def train_lgbm(
     Parameters
     ----------
     X_train, y_train : Training data.
-    X_cal, y_cal : Calibration data (used for early stopping and residuals).
+    X_val, y_val : Validation data for early stopping only.
+    X_cal, y_cal : Calibration data for conformal residuals only.
+        NOT used during training — preserves exchangeability.
     seed : Random seed.
     Other params : LightGBM hyperparameters.
 
@@ -53,7 +57,7 @@ def train_lgbm(
     model.fit(
         X_train,
         y_train,
-        eval_set=[(X_cal, y_cal)],
+        eval_set=[(X_val, y_val)],
         callbacks=[lgb.early_stopping(early_stopping_rounds, verbose=False)],
     )
 

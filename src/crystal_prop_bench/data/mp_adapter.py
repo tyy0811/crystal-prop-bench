@@ -51,8 +51,20 @@ class MPAdapter(DatasetAdapter):
         # Store structures separately (too complex for parquet)
         structures = {}
         rows = []
+        skipped = 0
         for doc in docs:
             mid = str(doc.material_id)
+            # Defensive: skip docs with missing required fields
+            sym = getattr(doc, "symmetry", None)
+            sg_number = getattr(sym, "number", None) if sym is not None else None
+            if (
+                doc.formation_energy_per_atom is None
+                or doc.band_gap is None
+                or doc.nsites is None
+                or sg_number is None
+            ):
+                skipped += 1
+                continue
             structures[mid] = doc.structure
             rows.append({
                 "material_id": mid,
@@ -60,8 +72,11 @@ class MPAdapter(DatasetAdapter):
                 "formation_energy_per_atom": doc.formation_energy_per_atom,
                 "band_gap": doc.band_gap,
                 "nsites": doc.nsites,
-                "spacegroup_number": doc.symmetry.number,
+                "spacegroup_number": sg_number,
             })
+
+        if skipped:
+            logger.warning("Skipped %d documents with missing fields", skipped)
 
         df = pd.DataFrame(rows)
 

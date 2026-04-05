@@ -9,5 +9,10 @@ data/*.parquet
 data/*.pkl
 results/models/
 results/predictions/
+results/tables/
+results/figures/
 .env
 *.DS_Store
+
+# Keep committed test fixtures
+!tests/fixtures/

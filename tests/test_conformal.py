@@ -24,17 +24,27 @@ class TestConformalRegressionInterval:
         midpoint = (lower[0] + upper[0]) / 2
         assert midpoint == pytest.approx(5.0)
 
-    def test_coverage_on_uniform_residuals(self):
-        """With enough uniform residuals, coverage should be close to 1-alpha."""
+    def test_coverage_guarantee_exchangeable(self):
+        """Conformal guarantee: coverage >= 1-alpha on exchangeable data."""
         rng = np.random.RandomState(42)
-        n_cal = 10000
-        cal_residuals = rng.uniform(0, 1, n_cal)
-        test_preds = rng.randn(5000)
-        test_true = test_preds + rng.uniform(-1, 1, 5000)
+        alpha = 0.10
+        coverages = []
+        for trial in range(50):
+            # Draw cal and test from the SAME distribution (exchangeable)
+            all_errors = rng.exponential(scale=1.0, size=200)
+            all_preds = rng.randn(200)
+            all_true = all_preds + rng.choice([-1, 1], 200) * all_errors
 
-        lower, upper = conformal_regression_interval(cal_residuals, test_preds, alpha=0.10)
-        covered = ((test_true >= lower) & (test_true <= upper)).mean()
-        assert covered >= 0.88  # some slack for finite sample
+            cal_residuals = np.abs(all_true[:100] - all_preds[:100])
+            test_preds = all_preds[100:]
+            test_true = all_true[100:]
+
+            lower, upper = conformal_regression_interval(cal_residuals, test_preds, alpha)
+            covered = ((test_true >= lower) & (test_true <= upper)).mean()
+            coverages.append(covered)
+
+        # Average coverage should be >= 1 - alpha across trials
+        assert np.mean(coverages) >= 1 - alpha - 0.02
 
     def test_zero_residuals_give_zero_width(self):
         cal_residuals = np.zeros(100)

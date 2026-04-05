@@ -48,7 +48,6 @@ def main() -> None:
         logger.info("Wrote calibration_sweep.png")
 
     plot_shap_summary(
-        "shap_importance_*.csv",
         TABLES_DIR,
         FIGURES_DIR / "shap_summary.png",
     )

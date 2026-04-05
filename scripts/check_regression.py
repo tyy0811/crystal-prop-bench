@@ -35,14 +35,16 @@ def main() -> int:
     failures = []
 
     for target, threshold in thresholds.items():
-        train_df, cal_df, test_df = standard_split(df, seed=42)
+        train_df, val_df, cal_df, test_df = standard_split(df, seed=42)
 
         train_m = train_df.merge(features, on="material_id")
+        val_m = val_df.merge(features, on="material_id")
         cal_m = cal_df.merge(features, on="material_id")
         test_m = test_df.merge(features, on="material_id")
 
         model, _ = train_lgbm(
             train_m[feature_cols].values, train_m[target].values,
+            val_m[feature_cols].values, val_m[target].values,
             cal_m[feature_cols].values, cal_m[target].values,
             seed=42,
         )

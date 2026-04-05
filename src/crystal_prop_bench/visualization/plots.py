@@ -118,7 +118,6 @@ def plot_calibration_sweep(
 
 
 def plot_shap_summary(
-    shap_csv_pattern: str,
     tables_dir: Path,
     output_path: Path,
     top_n: int = 15,

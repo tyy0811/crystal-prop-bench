@@ -23,77 +23,50 @@ from crystal_prop_bench.data.featurizers import (
 from crystal_prop_bench.data.mp_adapter import MPAdapter
 from crystal_prop_bench.data.splits import domain_shift_split, standard_split
 from crystal_prop_bench.evaluation.metrics import compute_metrics
+from crystal_prop_bench.models import MODELS_DIR, save_predictions
 from crystal_prop_bench.models.lgbm_baseline import train_lgbm
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-RESULTS_DIR = Path("results")
-PREDICTIONS_DIR = RESULTS_DIR / "predictions"
-MODELS_DIR = RESULTS_DIR / "models"
 
-
-def save_predictions(
-    material_ids: np.ndarray,
-    y_true: np.ndarray,
-    y_pred: np.ndarray,
-    families: np.ndarray,
-    split_label: str,
-    filename: str,
-) -> None:
-    PREDICTIONS_DIR.mkdir(parents=True, exist_ok=True)
-    pd.DataFrame({
-        "material_id": material_ids,
-        "y_true": y_true,
-        "y_pred": y_pred,
-        "chemistry_family": families,
-        "split": split_label,
-    }).to_parquet(PREDICTIONS_DIR / filename, index=False)
+def _merge_features(df, features, feature_cols, target):
+    merged = df.merge(features, on="material_id")
+    return merged[feature_cols].values, merged[target].values, merged
 
 
 def train_and_predict(
-    train_df: pd.DataFrame,
-    cal_df: pd.DataFrame,
-    test_df: pd.DataFrame,
-    features: pd.DataFrame,
-    target: str,
-    seed: int,
-    tier_label: str,
-    split_label: str,
-    test_split_key: str,
-) -> None:
+    train_df, val_df, cal_df, test_df, features, target, seed,
+    tier_label, split_label, test_split_key, model_params,
+):
     """Generic train-predict-save loop."""
     feature_cols = [c for c in features.columns if c != "material_id"]
 
-    train_m = train_df.merge(features, on="material_id")
-    cal_m = cal_df.merge(features, on="material_id")
-    test_m = test_df.merge(features, on="material_id")
+    X_train, y_train, _ = _merge_features(train_df, features, feature_cols, target)
+    X_val, y_val, _ = _merge_features(val_df, features, feature_cols, target)
+    X_cal, y_cal, cal_m = _merge_features(cal_df, features, feature_cols, target)
+    X_test, y_test, test_m = _merge_features(test_df, features, feature_cols, target)
 
-    if len(train_m) == 0 or len(test_m) == 0:
+    if len(X_train) == 0 or len(X_test) == 0:
         return
 
     model, _ = train_lgbm(
-        train_m[feature_cols].values, train_m[target].values,
-        cal_m[feature_cols].values, cal_m[target].values,
-        seed=seed,
+        X_train, y_train, X_val, y_val, X_cal, y_cal, seed=seed, **model_params,
     )
 
-    test_preds = model.predict(test_m[feature_cols].values)
+    test_preds = model.predict(X_test)
     target_short = "ef" if target == "formation_energy_per_atom" else "bg"
 
     save_predictions(
-        test_m["material_id"].values,
-        test_m[target].values, test_preds,
+        test_m["material_id"].values, test_m[target].values, test_preds,
         test_m["chemistry_family"].values,
         f"{split_label}_{test_split_key}",
         f"{tier_label}_{split_label}_seed{seed}_{target_short}_{test_split_key}.parquet",
     )
 
-    # Save cal predictions
-    cal_preds = model.predict(cal_m[feature_cols].values)
+    cal_preds = model.predict(X_cal)
     save_predictions(
-        cal_m["material_id"].values,
-        cal_m[target].values, cal_preds,
+        cal_m["material_id"].values, cal_m[target].values, cal_preds,
         cal_m["chemistry_family"].values,
         f"{split_label}_cal",
         f"{tier_label}_{split_label}_seed{seed}_{target_short}_cal.parquet",
@@ -114,60 +87,66 @@ def main() -> None:
 
     seeds = config["evaluation"]["seeds"]
     targets = config["evaluation"]["targets"]
+    model_params = {
+        "n_estimators": config["model"]["n_estimators"],
+        "learning_rate": config["model"]["learning_rate"],
+        "num_leaves": config["model"]["num_leaves"],
+        "min_child_samples": config["model"]["min_child_samples"],
+        "subsample": config["model"]["subsample"],
+        "colsample_bytree": config["model"]["colsample_bytree"],
+        "early_stopping_rounds": config["model"]["early_stopping_rounds"],
+    }
 
-    # Load data and structures
     adapter = MPAdapter(cache_dir=Path("data/mp"))
     df = adapter.load()
 
     with open(adapter.cache_path() / "structures.pkl", "rb") as f:
         structures = pickle.load(f)
 
-    # Compute Voronoi features (includes Magpie)
     voronoi_features = compute_voronoi_features(
         df, structures, cache_path=Path("data/mp/voronoi_features.parquet")
     )
-
-    # Also get pure Magpie features for bias check
     magpie_features = compute_magpie_features(
         df, cache_path=Path("data/mp/magpie_features.parquet")
     )
 
-    # Voronoi-survivable subset
     voronoi_ids = set(voronoi_features["material_id"])
     df_voronoi = df[df["material_id"].isin(voronoi_ids)].copy()
     magpie_voronoi = magpie_features[magpie_features["material_id"].isin(voronoi_ids)]
 
     logger.info(
         "Voronoi subset: %d/%d crystals (%.1f%%)",
-        len(df_voronoi), len(df),
-        100.0 * len(df_voronoi) / len(df),
+        len(df_voronoi), len(df), 100.0 * len(df_voronoi) / len(df),
     )
 
     mlflow.set_experiment("crystal-prop-bench-tier2")
 
     for target in targets:
         for seed in seeds:
-            # --- Standard split ---
-            train, cal, test = standard_split(df_voronoi, seed=seed)
+            train, val, cal, test = standard_split(df_voronoi, seed=seed)
 
             with mlflow.start_run(run_name=f"tier2_standard_{target}_seed{seed}"):
                 mlflow.log_params({"tier": 2, "split": "standard", "target": target, "seed": seed})
-                train_and_predict(train, cal, test, voronoi_features, target, seed, "tier2", "standard", "test")
+                train_and_predict(
+                    train, val, cal, test, voronoi_features, target, seed,
+                    "tier2", "standard", "test", model_params,
+                )
 
-            # Bias check: Tier 1 on Voronoi subset
-            with mlflow.start_run(run_name=f"tier1_voronoi_subset_standard_{target}_seed{seed}"):
+            with mlflow.start_run(run_name=f"tier1sub_standard_{target}_seed{seed}"):
                 mlflow.log_params({"tier": "1_voronoi_subset", "split": "standard", "target": target, "seed": seed})
-                train_and_predict(train, cal, test, magpie_voronoi, target, seed, "tier1sub", "standard", "test")
+                train_and_predict(
+                    train, val, cal, test, magpie_voronoi, target, seed,
+                    "tier1sub", "standard", "test", model_params,
+                )
 
-            # --- Domain-shift split ---
             splits = domain_shift_split(df_voronoi, seed=seed)
 
             with mlflow.start_run(run_name=f"tier2_domshift_{target}_seed{seed}"):
                 mlflow.log_params({"tier": 2, "split": "domain_shift", "target": target, "seed": seed})
                 for split_key in ["test_id", "test_ood_sulfide", "test_ood_nitride", "test_ood_halide"]:
                     train_and_predict(
-                        splits["train"], splits["cal"], splits[split_key],
-                        voronoi_features, target, seed, "tier2", "domshift", split_key,
+                        splits["train"], splits["val"], splits["cal"], splits[split_key],
+                        voronoi_features, target, seed, "tier2", "domshift", split_key, model_params,
                     )
 
 

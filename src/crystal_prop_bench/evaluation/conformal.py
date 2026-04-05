@@ -32,7 +32,7 @@ def conformal_regression_interval(
     """
     n = len(cal_residuals)
     q = np.ceil((n + 1) * (1 - alpha)) / n
-    q_hat = float(np.quantile(np.abs(cal_residuals), min(q, 1.0)))
+    q_hat = float(np.quantile(np.abs(cal_residuals), min(q, 1.0), method="higher"))
     return test_predictions - q_hat, test_predictions + q_hat
 
 

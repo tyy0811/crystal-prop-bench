@@ -72,9 +72,23 @@ class TestVoronoiFeaturizer:
 
     def test_drops_failed_structures(self):
         """Structures that fail featurization are dropped, not errored."""
-        # This test uses the fixture which has a known survival count
-        # Actual assertion uses fixture_meta pinned count
-        pass  # Covered by test_pinned_survival_count below
+        df = pd.DataFrame({
+            "material_id": ["good-1", "bad-1"],
+            "formula_pretty": ["Fe2O3", "ZnS"],
+            "chemistry_family": ["oxide", "sulfide"],
+        })
+        # Provide a valid structure for good-1 and a broken one for bad-1
+        from pymatgen.core import Lattice, Structure
+        good_struct = Structure(
+            Lattice.cubic(3.0),
+            ["Fe", "Fe", "O", "O", "O"],
+            [[0, 0, 0], [0.5, 0.5, 0.5], [0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]],
+        )
+        structures = {"good-1": good_struct}  # bad-1 missing → dropped
+
+        result = compute_voronoi_features(df, structures)
+        assert len(result) == 1
+        assert result.iloc[0]["material_id"] == "good-1"
 
     def test_pinned_survival_count(
         self, fixture_voronoi_features, fixture_meta

@@ -76,6 +76,26 @@ class TestMPAdapter:
         assert df.iloc[0]["formation_energy_per_atom"] == pytest.approx(-1.5)
         assert df.iloc[0]["band_gap"] == pytest.approx(2.0)
 
+    @patch("crystal_prop_bench.data.mp_adapter.MPRester")
+    def test_skips_docs_with_missing_fields(
+        self, mock_rester_cls: MagicMock, tmp_path: Path,
+    ) -> None:
+        """Documents with None band_gap or missing symmetry are skipped."""
+        mock_ctx = MagicMock()
+        mock_rester_cls.return_value.__enter__ = MagicMock(return_value=mock_ctx)
+        mock_rester_cls.return_value.__exit__ = MagicMock(return_value=False)
+
+        good_doc = self._make_mock_doc("mp-1", "Fe2O3", -1.5, 2.0, 10, 167)
+        bad_doc = self._make_mock_doc("mp-2", "ZnS", -0.8, None, 4, 216)
+
+        mock_ctx.materials.summary.search.return_value = [good_doc, bad_doc]
+
+        adapter = MPAdapter(api_key="fake_key", cache_dir=tmp_path / "mp")
+        df = adapter.load_raw()
+
+        assert len(df) == 1
+        assert df.iloc[0]["material_id"] == "mp-1"
+
     def test_cache_path_returns_configured_dir(self) -> None:
         adapter = MPAdapter(api_key="fake", cache_dir=Path("/tmp/test_cache"))
         assert adapter.cache_path() == Path("/tmp/test_cache")
