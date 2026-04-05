@@ -8,14 +8,13 @@ Run once, commit the results. CI never needs API access.
 
 from __future__ import annotations
 
+import json
 import logging
 import pickle
 from pathlib import Path
 
 import pandas as pd
-from pymatgen.core import Composition
 
-from crystal_prop_bench.data.chemistry import classify_chemistry_family
 from crystal_prop_bench.data.mp_adapter import MPAdapter
 
 logging.basicConfig(level=logging.INFO)
@@ -90,7 +89,8 @@ def main() -> None:
 
     # Save the expected survival count for test pinning
     survival_meta = {"expected_voronoi_count": len(voronoi_df)}
-    pd.Series(survival_meta).to_json(FIXTURES_DIR / "fixture_meta.json")
+    with open(FIXTURES_DIR / "fixture_meta.json", "w") as f:
+        json.dump(survival_meta, f)
 
 
 if __name__ == "__main__":
