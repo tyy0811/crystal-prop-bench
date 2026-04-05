@@ -1,0 +1,23 @@
+data:
+  cache_dir: data
+  purity_threshold: 0.80
+
+model:
+  n_estimators: 1000
+  learning_rate: 0.05
+  num_leaves: 127
+  min_child_samples: 20
+  subsample: 0.8
+  colsample_bytree: 0.8
+  early_stopping_rounds: 50
+
+evaluation:
+  seeds: [42, 123, 456]
+  targets: [formation_energy_per_atom, band_gap]
+  alphas: [0.10, 0.20, 0.30]
+  cal_sizes: [5, 10, 25, 50, 100]
+
+split:
+  train_frac: 0.8
+  cal_frac: 0.1
+  test_frac: 0.1

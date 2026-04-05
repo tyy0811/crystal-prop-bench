@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+.venv/
+mlruns/
+data/*.parquet
+data/*.pkl
+results/models/
+results/predictions/
+.env
+*.DS_Store
