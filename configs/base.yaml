@@ -22,3 +22,18 @@ split:
   val_frac: 0.1
   cal_frac: 0.1
   test_frac: 0.1
+
+alignn:
+  cutoff: 8.0
+  max_neighbors: 12
+  alignn_layers: 4
+  gcn_layers: 4
+  embedding_features: 64
+  hidden_features: 256
+  output_features: 1
+  epochs: 200
+  lr: 0.001
+  weight_decay: 0.00001
+  patience: 30
+  scheduler_patience: 10
+  batch_size: 256
