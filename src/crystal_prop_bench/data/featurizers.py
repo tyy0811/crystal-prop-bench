@@ -117,44 +117,67 @@ def compute_voronoi_features(
 
     logger.info("Computing Voronoi structural features for %d structures...", len(df))
 
+    # Get feature labels from a single successful structure
+    struct_labels: list[str] | None = None
+    for _, row in df.iterrows():
+        mid = row["material_id"]
+        if mid in structures:
+            try:
+                labels = []
+                for _, feat in struct_featurizers:
+                    labels.extend(feat.feature_labels())
+                struct_labels = labels
+                break
+            except Exception:
+                continue
+
+    def _featurize_one(mid: str, structure: object) -> list[float] | None:
+        """Featurize a single structure. Returns features or None on failure."""
+        try:
+            all_features: list[float] = []
+            for _, feat in struct_featurizers:
+                all_features.extend(feat.featurize(structure))
+            return all_features
+        except Exception:
+            return None
+
+    # Build work items
+    work_items = []
+    missing_ids: list[tuple[str, str]] = []
+    for _, row in df.iterrows():
+        mid = row["material_id"]
+        if mid in structures:
+            work_items.append((mid, structures[mid], row.get("chemistry_family", "unknown")))
+        else:
+            missing_ids.append((mid, row.get("chemistry_family", "unknown")))
+
+    # Parallel featurization
+    from joblib import Parallel, delayed
+
+    n_jobs = min(8, len(work_items))
+    logger.info("Running Voronoi featurization with %d parallel jobs...", n_jobs)
+
+    results = Parallel(n_jobs=n_jobs, verbose=10)(
+        delayed(_featurize_one)(mid, struct)
+        for mid, struct, _ in work_items
+    )
+
+    # Collect results
     successful_ids = []
     struct_feature_rows = []
-    struct_labels: list[str] | None = None
-    failed_count = 0
+    failed_count = len(missing_ids)
     failed_by_family: dict[str, int] = {}
 
-    for i, (_, row) in enumerate(df.iterrows()):
-        mid = row["material_id"]
-        if mid not in structures:
-            failed_count += 1
-            family = row.get("chemistry_family", "unknown")
-            failed_by_family[family] = failed_by_family.get(family, 0) + 1
-            continue
-
-        structure = structures[mid]
-        try:
-            all_features = []
-            all_labels = []
-            for name, feat in struct_featurizers:
-                features = feat.featurize(structure)
-                all_features.extend(features)
-                if struct_labels is None:
-                    all_labels.extend(feat.feature_labels())
-
-            if struct_labels is None:
-                struct_labels = all_labels
-
-            struct_feature_rows.append(all_features)
+    for (mid, _, family), feat_result in zip(work_items, results):
+        if feat_result is not None:
             successful_ids.append(mid)
-
-        except Exception as e:
+            struct_feature_rows.append(feat_result)
+        else:
             failed_count += 1
-            family = row.get("chemistry_family", "unknown")
             failed_by_family[family] = failed_by_family.get(family, 0) + 1
-            logger.debug("Featurization failed for %s: %s", mid, e)
 
-        if (i + 1) % 10000 == 0:
-            logger.info("  Processed %d/%d (failed: %d)", i + 1, len(df), failed_count)
+    for mid, family in missing_ids:
+        failed_by_family[family] = failed_by_family.get(family, 0) + 1
 
     logger.info(
         "Voronoi featurization: %d succeeded, %d failed (%.1f%%)",

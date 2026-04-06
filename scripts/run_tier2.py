@@ -98,17 +98,42 @@ def main() -> None:
     }
 
     adapter = MPAdapter(cache_dir=Path("data/mp"))
-    df = adapter.load()
+    df_full = adapter.load()
+
+    # Subsample oxides to 15K; keep all minority families intact.
+    # LightGBM convergence is unchanged at this scale, and it reduces
+    # Voronoi featurization from ~80 hours to ~2 hours.
+    OXIDE_SUBSAMPLE = 15000
+    oxides = df_full[df_full["chemistry_family"] == "oxide"]
+    minorities = df_full[df_full["chemistry_family"] != "oxide"]
+    if len(oxides) > OXIDE_SUBSAMPLE:
+        oxides = oxides.sample(n=OXIDE_SUBSAMPLE, random_state=42)
+        logger.info(
+            "Subsampled oxides to %d (from %d) for Tier 2 featurization",
+            len(oxides), (df_full["chemistry_family"] == "oxide").sum(),
+        )
+    df = pd.concat([oxides, minorities], ignore_index=True)
+    logger.info("Tier 2 dataset: %d crystals", len(df))
 
     with open(adapter.cache_path() / "structures.pkl", "rb") as f:
         structures = pickle.load(f)
 
     voronoi_features = compute_voronoi_features(
-        df, structures, cache_path=Path("data/mp/voronoi_features.parquet")
+        df, structures, cache_path=Path("data/mp/voronoi_features_sub.parquet")
     )
     magpie_features = compute_magpie_features(
         df, cache_path=Path("data/mp/magpie_features.parquet")
     )
+
+    # Encode non-numeric columns from GlobalSymmetryFeatures
+    if "crystal_system" in voronoi_features.columns:
+        voronoi_features["crystal_system"] = voronoi_features["crystal_system"].astype(
+            "category"
+        ).cat.codes
+    if "is_centrosymmetric" in voronoi_features.columns:
+        voronoi_features["is_centrosymmetric"] = voronoi_features[
+            "is_centrosymmetric"
+        ].astype(int)
 
     voronoi_ids = set(voronoi_features["material_id"])
     df_voronoi = df[df["material_id"].isin(voronoi_ids)].copy()

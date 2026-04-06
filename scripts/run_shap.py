@@ -16,6 +16,8 @@ import yaml
 
 from crystal_prop_bench.data.featurizers import compute_magpie_features
 from crystal_prop_bench.data.mp_adapter import MPAdapter
+
+VORONOI_CACHE = Path("data/mp/voronoi_features_sub.parquet")
 from crystal_prop_bench.evaluation.explainability import (
     compute_shap_values,
     extract_failure_cases,
@@ -47,6 +49,19 @@ def main() -> None:
     # Use seed 42, standard split, formation energy as representative
     seed = config["evaluation"]["seeds"][0]
 
+    # Load Voronoi features for Tier 2 if available
+    voronoi_features = None
+    if VORONOI_CACHE.exists():
+        voronoi_features = pd.read_parquet(VORONOI_CACHE)
+        if "crystal_system" in voronoi_features.columns:
+            voronoi_features["crystal_system"] = voronoi_features[
+                "crystal_system"
+            ].astype("category").cat.codes
+        if "is_centrosymmetric" in voronoi_features.columns:
+            voronoi_features["is_centrosymmetric"] = voronoi_features[
+                "is_centrosymmetric"
+            ].astype(int)
+
     for tier in ["tier1", "tier2"]:
         model_path = MODELS_DIR / f"{tier}_standard_seed{seed}_ef.joblib"
         if not model_path.exists():
@@ -55,6 +70,13 @@ def main() -> None:
 
         model = joblib.load(model_path)
 
+        # Select features matching the tier
+        if tier == "tier2" and voronoi_features is not None:
+            tier_features = voronoi_features
+        else:
+            tier_features = features
+        tier_feature_cols = [c for c in tier_features.columns if c != "material_id"]
+
         # Load test predictions
         pred_files = list(PREDICTIONS_DIR.glob(f"{tier}_standard_seed{seed}_ef_test.parquet"))
         if not pred_files:
@@ -62,19 +84,19 @@ def main() -> None:
         pred_df = pd.read_parquet(pred_files[0])
 
         # Get features for test set
-        test_features = features[features["material_id"].isin(pred_df["material_id"])]
+        test_features = tier_features[tier_features["material_id"].isin(pred_df["material_id"])]
         test_features = test_features.merge(
             pred_df[["material_id"]], on="material_id"
         )
 
-        X_test = test_features[feature_cols].values
+        X_test = test_features[tier_feature_cols].values
 
         # Compute SHAP (subsample for speed if large)
         n_shap = min(len(X_test), 5000)
         shap_values = compute_shap_values(model, X_test[:n_shap])
 
         # Global importance
-        importance = global_feature_importance(shap_values, feature_cols)
+        importance = global_feature_importance(shap_values, tier_feature_cols)
         importance_df = pd.DataFrame(importance, columns=["feature", "mean_abs_shap"])
         importance_df["tier"] = tier
         importance_df.to_csv(
@@ -90,7 +112,7 @@ def main() -> None:
             mask = test_with_family["chemistry_family"].values[:n_shap] == family
             if mask.sum() > 0:
                 family_importance = global_feature_importance(
-                    shap_values[mask], feature_cols
+                    shap_values[mask], tier_feature_cols
                 )
                 family_df = pd.DataFrame(
                     family_importance, columns=["feature", "mean_abs_shap"]

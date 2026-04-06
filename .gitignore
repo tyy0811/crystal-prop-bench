@@ -9,10 +9,12 @@ data/*.parquet
 data/*.pkl
 results/models/
 results/predictions/
-results/tables/
-results/figures/
 .env
 *.DS_Store
+docs/plans/
+CLAUDE.md
+mlflow.db
+mlruns/
 
 # Keep committed test fixtures
 !tests/fixtures/

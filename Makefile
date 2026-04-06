@@ -25,7 +25,7 @@ lint:
 	mypy src/
 
 test:
-	pytest tests/ -x --ignore=tests/test_integration.py
+	pytest tests/ -x --ignore=tests/test_integration.py -m "not network"
 
 test-all:
 	pytest tests/ -x

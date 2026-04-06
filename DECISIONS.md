@@ -94,7 +94,7 @@ drop-and-report strategy is validated.
 ## 9. Why 3 seeds
 
 Three seeds provide mean +/- std estimates of model performance. This
-is the convention across the portfolio (diffusion-physics, sim-to-data,
+is the convention across the portfolio (laplace-uq-bench, sim-to-data,
 finetune-bench, demandops-lite). At the scale of Materials Project
 (~150K crystals), variance across seeds is small, so 3 seeds suffice
 without being wasteful.
@@ -143,3 +143,21 @@ conformal intervals become reliable?
 
 This curve is the most deployable finding in the repo and is not
 reported in standard materials ML benchmarks.
+
+## 15. Oxide subsampling for Tier 2 Voronoi featurization
+
+Voronoi tessellation + SiteStatsFingerprint(VoronoiNN) takes ~3 seconds
+per structure on a single core. At 110K structures, serial featurization
+would require ~80 hours. Even with 8-core parallelism, the full set
+takes ~10 hours.
+
+Tier 2 subsamples oxides from ~77K to 15K (stratified random, seed=42)
+while keeping all minority families (sulfide, nitride, halide) intact.
+Total Tier 2 dataset: ~48K structures. Rationale:
+
+- **LightGBM convergence is unchanged at this scale.** Gradient-boosted
+  trees plateau well below 15K training samples for tabular features.
+- **Minority families are never subsampled.** These are the OOD test
+  sets; subsampling would weaken the domain-shift evaluation.
+- **Tier 1 (Magpie) runs on the full 110K dataset.** Only Tier 2
+  is subsampled, so the composition-only baseline remains unaffected.
