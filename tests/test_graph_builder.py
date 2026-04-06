@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 import pytest
 
@@ -12,7 +11,7 @@ torch = pytest.importorskip("torch")
 dgl = pytest.importorskip("dgl")
 pytest.importorskip("alignn")
 
-from crystal_prop_bench.data.graph_builder import (
+from crystal_prop_bench.data.graph_builder import (  # noqa: E402
     build_alignn_graph,
     build_alignn_graphs,
     pymatgen_to_jarvis,
