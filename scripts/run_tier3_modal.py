@@ -22,20 +22,13 @@ app = modal.App("crystal-prop-bench-alignn")
 
 image = (
     modal.Image.debian_slim(python_version="3.11")
-    .pip_install(
-        "torch>=2.2.0",
-        "dgl>=2.1.0",
-        "alignn>=2024.5.0",
-        "pymatgen>=2024.2.0",
-        "matminer>=0.9.0",
-        "mp-api>=0.39.0",
-        "lightgbm>=4.3.0",
-        "scikit-learn>=1.4.0",
-        "joblib>=1.3.0",
-        "pandas>=2.2.0",
-        "pandera>=0.18.0",
-        "mlflow>=2.11.0",
-        "pyyaml>=6.0",
+    .run_commands(
+        "pip install torch==2.4.1 --index-url https://download.pytorch.org/whl/cu121",
+        "pip install dgl==2.4.0 -f https://data.dgl.ai/wheels/torch-2.4/cu121/repo.html",
+        "pip install alignn>=2024.5.0",
+        "pip install pymatgen>=2024.2.0 matminer>=0.9.0 mp-api>=0.39.0 "
+        "lightgbm>=4.3.0 scikit-learn>=1.4.0 joblib>=1.3.0 "
+        "pandas>=2.2.0 pandera>=0.18.0 mlflow>=2.11.0 pyyaml>=6.0",
     )
 )
 
@@ -115,16 +108,13 @@ def train_tier3(config_overrides: dict | None = None) -> str:
     so we chdir to /vol where data/, configs/, src/, scripts/ live.
     """
     import os
-    import subprocess
     import sys
 
     os.chdir(REMOTE_ROOT)
 
-    # Install the package from the uploaded source
-    subprocess.run(
-        [sys.executable, "-m", "pip", "install", "-e", "."],
-        check=True,
-    )
+    # Add source to Python path (volume has src/ from upload)
+    sys.path.insert(0, os.path.join(REMOTE_ROOT, "src"))
+    sys.path.insert(0, REMOTE_ROOT)
 
     # Patch save_checkpoint to also commit the volume after each run
     import scripts.run_tier3 as tier3_mod
@@ -146,7 +136,7 @@ def train_tier3(config_overrides: dict | None = None) -> str:
 def train(
     epochs: int = 200,
     lr: float = 0.001,
-    batch_size: int = 256,
+    batch_size: int = 128,
 ) -> None:
     """Launch Tier 3 training on Modal A10G GPU.
 
