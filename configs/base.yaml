@@ -12,7 +12,7 @@ model:
   early_stopping_rounds: 50
 
 evaluation:
-  seeds: [42, 123, 456]
+  seeds: [42]
   targets: [formation_energy_per_atom, band_gap]
   alphas: [0.10, 0.20, 0.30]
   cal_sizes: [5, 10, 25, 50, 100]
