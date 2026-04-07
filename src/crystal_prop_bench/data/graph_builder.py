@@ -10,6 +10,7 @@ import logging
 import pickle
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 from pymatgen.core import Structure
 
@@ -33,9 +34,10 @@ def build_alignn_graph(
     cutoff: float = 8.0,
     max_neighbors: int = 12,
 ) -> tuple:
-    """Build (atom_graph, line_graph) for one JARVIS Atoms object.
+    """Build (atom_graph, line_graph, lattice_mat) for one JARVIS Atoms object.
 
-    Returns DGL graph pair with node/edge features set by ALIGNN convention.
+    Returns DGL graph pair + lattice matrix (3x3 numpy array)
+    with node/edge features set by ALIGNN convention.
     """
     from alignn.graphs import Graph
 
@@ -47,7 +49,8 @@ def build_alignn_graph(
         compute_line_graph=True,
         use_canonize=False,
     )
-    return g, lg
+    lattice_mat = np.array(atoms.lattice_mat, dtype=np.float32)
+    return g, lg, lattice_mat
 
 
 def build_alignn_graphs(
@@ -69,7 +72,7 @@ def build_alignn_graphs(
 
     Returns
     -------
-    Dict mapping material_id to (atom_graph, line_graph).
+    Dict mapping material_id to (atom_graph, line_graph, lattice_mat).
     Structures that fail graph construction are dropped and logged.
     """
     if cache_path and cache_path.exists():
@@ -91,8 +94,8 @@ def build_alignn_graphs(
     def _build_one(mid: str, structure: Structure, family: str) -> tuple[str, tuple | None, str]:
         try:
             atoms = pymatgen_to_jarvis(structure)
-            g, lg = build_alignn_graph(atoms, cutoff=cutoff, max_neighbors=max_neighbors)
-            return mid, (g, lg), family
+            g, lg, lat = build_alignn_graph(atoms, cutoff=cutoff, max_neighbors=max_neighbors)
+            return mid, (g, lg, lat), family
         except Exception as e:
             logger.debug("Graph construction failed for %s: %s", mid, e)
             return mid, None, family

@@ -38,8 +38,8 @@ class TestBuildAlignn:
         model = build_alignn()
         n_params = sum(p.numel() for p in model.parameters())
         assert n_params > 0
-        # ~400K params expected
-        assert n_params < 2_000_000
+        # ~4M params with default config
+        assert n_params < 10_000_000
 
 
 class TestALIGNNDataset:
@@ -49,13 +49,15 @@ class TestALIGNNDataset:
         ds = ALIGNNDataset(small_graphs, graph_ids, targets)
         assert len(ds) == len(graph_ids)
 
-    def test_getitem_returns_triple(self, small_graphs: dict, fixture_crystals: pd.DataFrame) -> None:
+    def test_getitem_returns_quad(self, small_graphs: dict, fixture_crystals: pd.DataFrame) -> None:
         graph_ids = [mid for mid in fixture_crystals["material_id"].head(20) if mid in small_graphs]
         targets = np.random.randn(len(graph_ids))
         ds = ALIGNNDataset(small_graphs, graph_ids, targets)
-        g, lg, t = ds[0]
+        g, lg, lat, t = ds[0]
         assert isinstance(g, dgl.DGLGraph)
         assert isinstance(lg, dgl.DGLGraph)
+        assert isinstance(lat, torch.Tensor)
+        assert lat.shape == (3, 3)
         assert isinstance(t, (float, np.floating))
 
 
@@ -65,9 +67,10 @@ class TestCollateAlignn:
         targets = np.random.randn(len(graph_ids))
         ds = ALIGNNDataset(small_graphs, graph_ids, targets)
         batch = collate_alignn([ds[i] for i in range(min(4, len(ds)))])
-        bg, blg, bt = batch
+        bg, blg, blat, bt = batch
         assert isinstance(bg, dgl.DGLGraph)
         assert isinstance(blg, dgl.DGLGraph)
+        assert blat.shape == (min(4, len(ds)), 3, 3)
         assert bt.shape[0] == min(4, len(ds))
 
 
@@ -76,22 +79,33 @@ class TestForwardPass:
         model = build_alignn()
         model.eval()
         mid = next(iter(small_graphs))
-        g, lg = small_graphs[mid]
+        g, lg, lat = small_graphs[mid]
+        lat_t = torch.tensor(lat, dtype=torch.float32).unsqueeze(0)
         with torch.no_grad():
-            out = model(g, lg)
-        assert out.shape == (1, 1) or out.shape == (1,)
+            out = model([g, lg, lat_t])
+        pred = out["out"] if isinstance(out, dict) else out
+        # Single graph returns scalar or (1,) or (1,1) depending on version
+        assert pred.numel() == 1
 
     def test_batched_graphs(self, small_graphs: dict, fixture_crystals: pd.DataFrame) -> None:
         model = build_alignn()
         model.eval()
-        graph_ids = [mid for mid in fixture_crystals["material_id"].head(20) if mid in small_graphs][:4]
+        graph_ids = [
+            mid for mid in fixture_crystals["material_id"].head(20) if mid in small_graphs
+        ][:4]
         gs = [small_graphs[mid][0] for mid in graph_ids]
         lgs = [small_graphs[mid][1] for mid in graph_ids]
+        lats = [
+            torch.tensor(small_graphs[mid][2], dtype=torch.float32)
+            for mid in graph_ids
+        ]
         bg = dgl.batch(gs)
         blg = dgl.batch(lgs)
+        blat = torch.stack(lats)
         with torch.no_grad():
-            out = model(bg, blg)
-        assert out.shape[0] == len(graph_ids)
+            out = model([bg, blg, blat])
+        pred = out["out"] if isinstance(out, dict) else out
+        assert pred.shape[0] == len(graph_ids)
 
 
 class TestPredictAlignn:

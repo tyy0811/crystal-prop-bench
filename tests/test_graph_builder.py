@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -34,26 +35,28 @@ class TestPymatgenToJarvis:
 
 
 class TestBuildAlignnGraph:
-    def test_returns_graph_pair(self, fixture_structures: dict) -> None:
+    def test_returns_graph_triple(self, fixture_structures: dict) -> None:
         mid = next(iter(fixture_structures))
         structure = fixture_structures[mid]
         atoms = pymatgen_to_jarvis(structure)
-        g, lg = build_alignn_graph(atoms, cutoff=8.0)
+        g, lg, lat = build_alignn_graph(atoms, cutoff=8.0)
         assert isinstance(g, dgl.DGLGraph)
         assert isinstance(lg, dgl.DGLGraph)
+        assert isinstance(lat, np.ndarray)
+        assert lat.shape == (3, 3)
 
     def test_atom_graph_nodes_match_sites(self, fixture_structures: dict) -> None:
         mid = next(iter(fixture_structures))
         structure = fixture_structures[mid]
         atoms = pymatgen_to_jarvis(structure)
-        g, _ = build_alignn_graph(atoms, cutoff=8.0)
+        g, _, _ = build_alignn_graph(atoms, cutoff=8.0)
         assert g.num_nodes() == len(structure)
 
     def test_atom_graph_has_node_features(self, fixture_structures: dict) -> None:
         mid = next(iter(fixture_structures))
         structure = fixture_structures[mid]
         atoms = pymatgen_to_jarvis(structure)
-        g, _ = build_alignn_graph(atoms, cutoff=8.0)
+        g, _, _ = build_alignn_graph(atoms, cutoff=8.0)
         assert "atom_features" in g.ndata
         assert g.ndata["atom_features"].shape[0] == g.num_nodes()
 
@@ -61,14 +64,14 @@ class TestBuildAlignnGraph:
         mid = next(iter(fixture_structures))
         structure = fixture_structures[mid]
         atoms = pymatgen_to_jarvis(structure)
-        g, _ = build_alignn_graph(atoms, cutoff=8.0)
+        g, _, _ = build_alignn_graph(atoms, cutoff=8.0)
         assert g.num_edges() > 0
 
     def test_line_graph_nodes_equal_atom_edges(self, fixture_structures: dict) -> None:
         mid = next(iter(fixture_structures))
         structure = fixture_structures[mid]
         atoms = pymatgen_to_jarvis(structure)
-        g, lg = build_alignn_graph(atoms, cutoff=8.0)
+        g, lg, _ = build_alignn_graph(atoms, cutoff=8.0)
         assert lg.num_nodes() == g.num_edges()
 
 
@@ -81,14 +84,16 @@ class TestBuildAlignnGraphs:
         assert len(graphs) > 0
         assert len(graphs) <= len(fixture_crystals)
 
-    def test_returns_graph_pairs(
+    def test_returns_graph_triples(
         self, fixture_crystals: pd.DataFrame, fixture_structures: dict,
     ) -> None:
         graphs = build_alignn_graphs(fixture_crystals, fixture_structures, cutoff=8.0)
         mid = next(iter(graphs))
-        g, lg = graphs[mid]
+        g, lg, lat = graphs[mid]
         assert isinstance(g, dgl.DGLGraph)
         assert isinstance(lg, dgl.DGLGraph)
+        assert isinstance(lat, np.ndarray)
+        assert lat.shape == (3, 3)
 
     def test_caching_roundtrip(
         self, fixture_crystals: pd.DataFrame, fixture_structures: dict, tmp_path: Path,
