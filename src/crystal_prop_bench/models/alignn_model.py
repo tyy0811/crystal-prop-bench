@@ -143,10 +143,12 @@ def train_alignn(
     train_loader = DataLoader(
         train_ds, batch_size=batch_size, shuffle=True,
         collate_fn=collate_alignn, drop_last=False, generator=g,
+        num_workers=4, persistent_workers=True,
     )
     val_loader = DataLoader(
         val_ds, batch_size=batch_size, shuffle=False,
         collate_fn=collate_alignn,
+        num_workers=2, persistent_workers=True,
     )
 
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
@@ -200,11 +202,16 @@ def train_alignn(
         else:
             patience_counter += 1
 
-        if (epoch + 1) % 10 == 0 or patience_counter >= patience:
+        if (epoch + 1) % 5 == 0 or patience_counter >= patience:
+            gpu_info = ""
+            if device != "cpu" and torch.cuda.is_available():
+                mem = torch.cuda.memory_allocated() / 1e9
+                util = torch.cuda.utilization() if hasattr(torch.cuda, "utilization") else -1
+                gpu_info = f", gpu_mem={mem:.1f}GB, gpu_util={util}%"
             logger.info(
-                "Epoch %d/%d: train_mae=%.4f, val_mae=%.4f, best=%.4f, patience=%d/%d",
+                "Epoch %d/%d: train_mae=%.4f, val_mae=%.4f, best=%.4f, patience=%d/%d%s",
                 epoch + 1, epochs, np.mean(train_losses), val_mae,
-                best_val_mae, patience_counter, patience,
+                best_val_mae, patience_counter, patience, gpu_info,
             )
 
         if patience_counter >= patience:

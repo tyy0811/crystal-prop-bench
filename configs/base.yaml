@@ -26,14 +26,14 @@ split:
 alignn:
   cutoff: 8.0
   max_neighbors: 12
-  alignn_layers: 4
-  gcn_layers: 4
+  alignn_layers: 3
+  gcn_layers: 3
   embedding_features: 64
   hidden_features: 256
   output_features: 1
-  epochs: 200
+  epochs: 80
   lr: 0.001
   weight_decay: 0.00001
-  patience: 30
-  scheduler_patience: 10
+  patience: 10
+  scheduler_patience: 5
   batch_size: 128
