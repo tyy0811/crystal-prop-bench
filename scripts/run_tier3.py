@@ -76,7 +76,7 @@ def run_split(
             output_features=alignn_config["output_features"],
         )
 
-        model, cal_residuals = train_alignn(
+        model, cal_residuals, cal_preds = train_alignn(
             model=model,
             graphs=graphs,
             train_ids=train_ids,
@@ -95,8 +95,7 @@ def run_split(
             device=DEVICE,
         )
 
-        # Save cal predictions
-        cal_preds = predict_alignn(model, graphs, cal_ids, device=DEVICE)
+        # Save cal predictions (reuse from train_alignn, no redundant forward pass)
         save_predictions(
             cal_df["material_id"].values, cal_df[target].values, cal_preds,
             cal_df["chemistry_family"].values,

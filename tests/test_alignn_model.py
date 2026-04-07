@@ -142,7 +142,7 @@ class TestTrainAlignn:
         cal_targets = targets[n_train + n_val:]
 
         model = build_alignn()
-        model, cal_residuals = train_alignn(
+        model, cal_residuals, cal_preds = train_alignn(
             model=model,
             graphs=small_graphs,
             train_ids=train_ids,
@@ -161,3 +161,5 @@ class TestTrainAlignn:
         assert cal_residuals is not None
         assert len(cal_residuals) == len(cal_ids)
         assert (cal_residuals >= 0).all()
+        assert len(cal_preds) == len(cal_ids)
+        np.testing.assert_allclose(cal_residuals, np.abs(cal_targets - cal_preds))

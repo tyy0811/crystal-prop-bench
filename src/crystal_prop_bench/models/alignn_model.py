@@ -123,16 +123,17 @@ def train_alignn(
     scheduler_patience: int = 10,
     batch_size: int = 256,
     device: str = "cuda",
-) -> tuple[torch.nn.Module, np.ndarray]:
+) -> tuple[torch.nn.Module, np.ndarray, np.ndarray]:
     """Train ALIGNN and compute calibration residuals.
 
     Mirrors train_lgbm contract:
     - Val set for early stopping only.
     - Cal set held out, residuals computed post-training.
-    - Returns (model, cal_residuals) where cal_residuals = |y_cal - y_pred_cal|.
+    - Returns (model, cal_residuals, cal_preds).
     """
     torch.manual_seed(seed)
-    np.random.seed(seed)
+    g = torch.Generator()
+    g.manual_seed(seed)
 
     model = model.to(device)
 
@@ -141,7 +142,7 @@ def train_alignn(
 
     train_loader = DataLoader(
         train_ds, batch_size=batch_size, shuffle=True,
-        collate_fn=collate_alignn, drop_last=False,
+        collate_fn=collate_alignn, drop_last=False, generator=g,
     )
     val_loader = DataLoader(
         val_ds, batch_size=batch_size, shuffle=False,
@@ -222,4 +223,4 @@ def train_alignn(
         seed, best_val_mae, float(np.mean(cal_residuals)),
     )
 
-    return model, cal_residuals
+    return model, cal_residuals, cal_preds
