@@ -96,7 +96,7 @@ def upload() -> None:
 
 
 @app.function(
-    gpu="A10G",
+    gpu="A100",
     timeout=43200,  # 12 hours
     image=image,
     volumes={REMOTE_ROOT: volume},
@@ -111,6 +111,7 @@ def train_tier3(config_overrides: dict | None = None) -> str:
     import sys
 
     os.chdir(REMOTE_ROOT)
+    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 
     # Add source to Python path (volume has src/ from upload)
     sys.path.insert(0, os.path.join(REMOTE_ROOT, "src"))
