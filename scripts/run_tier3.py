@@ -3,10 +3,14 @@
 Builds ALIGNN graphs from cached structures, trains on standard +
 domain-shift + mixed-train splits, saves predictions to results/predictions/.
 Mirrors the run_tier1.py / run_tier2.py pattern.
+
+Supports resumption: completed runs are tracked in a checkpoint file.
+On restart, already-completed runs are skipped.
 """
 
 from __future__ import annotations
 
+import json
 import logging
 import pickle
 from pathlib import Path
@@ -27,6 +31,30 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+CHECKPOINT_PATH = Path("results/tier3_checkpoint.json")
+
+
+def _load_checkpoint() -> set[str]:
+    """Load set of completed run keys from checkpoint file."""
+    if CHECKPOINT_PATH.exists():
+        with open(CHECKPOINT_PATH) as f:
+            data = json.load(f)
+        completed = set(data.get("completed", []))
+        logger.info("Resuming: %d runs already completed", len(completed))
+        return completed
+    return set()
+
+
+def _save_checkpoint(completed: set[str]) -> None:
+    """Save completed run keys to checkpoint file."""
+    CHECKPOINT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with open(CHECKPOINT_PATH, "w") as f:
+        json.dump({"completed": sorted(completed)}, f, indent=2)
+
+
+def _run_key(split_name: str, target: str, seed: int) -> str:
+    """Unique key for a training run."""
+    return f"{split_name}_{target}_{seed}"
 
 
 def _filter_graphs(
@@ -176,33 +204,63 @@ def main(config_overrides: dict | None = None) -> None:
     df = df[df["material_id"].isin(graph_ids)].reset_index(drop=True)
     logger.info("Tier 3 dataset after graph filter: %d crystals", len(df))
 
+    # Resume support
+    completed = _load_checkpoint()
+    total_runs = len(seeds) * len(targets) * 3  # 3 split strategies
+    logger.info("Total runs: %d, already completed: %d", total_runs, len(completed))
+
     mlflow.set_experiment("crystal-prop-bench-tier3")
 
     for target in targets:
         for seed in seeds:
             # Standard split
-            train, val, cal, test = standard_split(df, seed=seed)
-            run_split(
-                "standard",
-                {"train": train, "val": val, "cal": cal, "test": test},
-                graphs, target, seed, alignn_config,
-                test_keys=["test"],
-            )
+            key = _run_key("standard", target, seed)
+            if key in completed:
+                logger.info("Skipping %s (already completed)", key)
+            else:
+                train, val, cal, test = standard_split(df, seed=seed)
+                run_split(
+                    "standard",
+                    {"train": train, "val": val, "cal": cal, "test": test},
+                    graphs, target, seed, alignn_config,
+                    test_keys=["test"],
+                )
+                completed.add(key)
+                _save_checkpoint(completed)
+                logger.info("Checkpoint saved: %d/%d runs complete", len(completed), total_runs)
 
             # Domain-shift split
-            splits = domain_shift_split(df, seed=seed, stratify_col=target)
-            run_split(
-                "domshift", splits, graphs, target, seed, alignn_config,
-                test_keys=["test_id", "test_ood_sulfide", "test_ood_nitride", "test_ood_halide"],
-            )
+            key = _run_key("domshift", target, seed)
+            if key in completed:
+                logger.info("Skipping %s (already completed)", key)
+            else:
+                splits = domain_shift_split(df, seed=seed, stratify_col=target)
+                run_split(
+                    "domshift", splits, graphs, target, seed, alignn_config,
+                    test_keys=[
+                        "test_id", "test_ood_sulfide", "test_ood_nitride", "test_ood_halide",
+                    ],
+                )
+                completed.add(key)
+                _save_checkpoint(completed)
+                logger.info("Checkpoint saved: %d/%d runs complete", len(completed), total_runs)
 
             # Mixed-train split
-            mixed = mixed_train_split(df, seed=seed)
-            mixed_test_keys = [k for k in mixed if k.startswith("test")]
-            run_split(
-                "mixed", mixed, graphs, target, seed, alignn_config,
-                test_keys=mixed_test_keys,
-            )
+            key = _run_key("mixed", target, seed)
+            if key in completed:
+                logger.info("Skipping %s (already completed)", key)
+            else:
+                mixed = mixed_train_split(df, seed=seed)
+                mixed_test_keys = [k for k in mixed if k.startswith("test")]
+                run_split(
+                    "mixed", mixed, graphs, target, seed, alignn_config,
+                    test_keys=mixed_test_keys,
+                )
+                completed.add(key)
+                _save_checkpoint(completed)
+                logger.info("Checkpoint saved: %d/%d runs complete", len(completed), total_runs)
+
+    logger.info("All %d runs complete!", total_runs)
 
 
 if __name__ == "__main__":
