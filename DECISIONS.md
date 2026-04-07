@@ -256,7 +256,7 @@ writing our own graph construction, training loop, and prediction
 export keeps the evaluation seam clean: training writes prediction
 parquets, evaluation reads them — same contract as Tiers 1-2.
 
-## 21. A10G with batch_size=32 for ALIGNN training
+## 21. A100 80GB with batch_size=128 for ALIGNN training
 
 Crystal graphs built with an 8.0 A cutoff and 12 nearest neighbors
 are extremely dense — large unit cells produce graphs with thousands
@@ -265,17 +265,14 @@ per atom graph edge). Edge features (80-dim) and triplet features
 (40-dim) make memory scale super-linearly with graph density.
 
 **Tested and rejected:**
-- A100 40GB with batch_size=128: OOM (37GB allocated, needed 2.25GB
-  more). The few largest structures in a batch dominate memory.
+- T4 (16GB) with batch_size=128: OOM.
 - A10G (24GB) with batch_size=128: OOM (19.5GB allocated).
-- T4 (16GB): OOM at any practical batch size.
+- A100 40GB with batch_size=128: OOM (37GB allocated, needed
+  2.25GB more). The few largest structures in a batch dominate.
+- A10G (24GB) with batch_size=32: fits (~10GB), but 4x slower
+  per epoch. Estimated 8-10h at ~$9-11.
 
-**Chosen: A10G (24GB) with batch_size=32.** Peak memory ~10GB,
-well within A10G capacity. At $1.10/hr, estimated 8-10 hours
-for 18 training runs (~$9-11 total). Smaller batches produce
-slightly noisier gradients but this often helps generalization.
-
-The batch_size=32 constraint is inherent to the 8.0 A cutoff
-generating dense graphs. Reducing cutoff would shrink graphs
-but degrade model quality. This is the standard tradeoff in
-crystal GNN training.
+**Chosen: A100 80GB with batch_size=128.** Peak memory ~40GB,
+fits within 80GB with headroom. Estimated 2-3 hours for 18
+training runs at ~$9-14 total — similar cost to A10G but
+4x faster wall-clock time.

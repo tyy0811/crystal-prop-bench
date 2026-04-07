@@ -36,4 +36,4 @@ alignn:
   weight_decay: 0.00001
   patience: 30
   scheduler_patience: 10
-  batch_size: 32
+  batch_size: 128
