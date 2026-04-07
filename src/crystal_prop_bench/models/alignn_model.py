@@ -47,7 +47,7 @@ def collate_alignn(samples: list[tuple]) -> tuple:
     """
     import dgl
 
-    gs, lgs, lats, targets = zip(*samples)
+    gs, lgs, lats, targets = zip(*samples, strict=True)
     return (
         dgl.batch(list(gs)),
         dgl.batch(list(lgs)),
@@ -77,7 +77,7 @@ def build_alignn(
         hidden_features=hidden_features,
         output_features=output_features,
     )
-    return ALIGNN(config)
+    return ALIGNN(config)  # type: ignore[no-any-return]
 
 
 def predict_alignn(

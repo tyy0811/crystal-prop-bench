@@ -49,7 +49,7 @@ def build_alignn_graph(
         compute_line_graph=True,
         use_canonize=False,
     )
-    lattice_mat = np.array(atoms.lattice_mat, dtype=np.float32)
+    lattice_mat = np.array(atoms.lattice_mat, dtype=np.float32)  # type: ignore[attr-defined]
     return g, lg, lattice_mat
 
 
@@ -78,9 +78,9 @@ def build_alignn_graphs(
     if cache_path and cache_path.exists():
         logger.info("Loading cached ALIGNN graphs from %s", cache_path)
         with open(cache_path, "rb") as f:
-            return pickle.load(f)
+            return pickle.load(f)  # type: ignore[no-any-return]
 
-    from joblib import Parallel, delayed
+    from joblib import Parallel, delayed  # type: ignore[import-untyped]
 
     material_ids = df["material_id"].values
     families = df["chemistry_family"].values if "chemistry_family" in df.columns else None
@@ -131,8 +131,8 @@ def build_alignn_graphs(
 
     if cache_path:
         cache_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(cache_path, "wb") as f:
-            pickle.dump(graphs, f)
+        with open(cache_path, "wb") as fw:
+            pickle.dump(graphs, fw)
         logger.info("Cached ALIGNN graphs to %s", cache_path)
 
     return graphs

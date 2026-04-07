@@ -12,7 +12,6 @@ import pickle
 from pathlib import Path
 
 import mlflow
-import numpy as np
 import pandas as pd
 import torch
 import yaml

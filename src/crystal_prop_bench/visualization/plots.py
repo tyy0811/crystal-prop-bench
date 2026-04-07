@@ -18,7 +18,7 @@ def plot_domain_shift_bars(
 
     fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 
-    for ax, target in zip(axes, ["ef", "bg"]):
+    for ax, target in zip(axes, ["ef", "bg"], strict=True):
         target_df = df[df["target"] == target]
         tiers = sorted(target_df["tier"].unique())
         families = sorted(target_df["ood_family"].unique())
