@@ -135,7 +135,7 @@ def train_tier3(config_overrides: dict | None = None) -> str:
 
 @app.local_entrypoint()
 def train(
-    epochs: int = 200,
+    epochs: int = 80,
     lr: float = 0.001,
     batch_size: int = 128,
 ) -> None:
