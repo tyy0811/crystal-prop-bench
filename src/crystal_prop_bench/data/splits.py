@@ -66,19 +66,38 @@ def domain_shift_split(
     train_frac: float = 0.70,
     val_frac: float = 0.10,
     cal_frac: float = 0.10,
+    stratify_col: str | None = None,
 ) -> dict[str, pd.DataFrame]:
     """Domain-shift split: train/val/cal/test on oxides, OOD families as test sets.
 
     Returns dict with keys: train, val, cal, test_id,
     test_ood_sulfide, test_ood_nitride, test_ood_halide.
+
+    If *stratify_col* is given (e.g. ``"formation_energy_per_atom"``),
+    oxide partitions are stratified by target-value quartile so that
+    each seed sees a similar distribution of easy/hard examples.
     """
     oxides = df[df["chemistry_family"] == "oxide"].copy()
     remaining_frac = 1.0 - train_frac
+
+    _BIN = "_strat_bin"
+    if stratify_col and stratify_col in oxides.columns:
+        oxides[_BIN] = pd.qcut(
+            oxides[stratify_col], q=4, labels=False, duplicates="drop",
+        )
+
+    def _strat(subset: pd.DataFrame) -> pd.Series | None:
+        if _BIN not in subset.columns:
+            return None
+        if subset[_BIN].value_counts().min() < 2:
+            return None
+        return subset[_BIN]
 
     train, remaining = train_test_split(
         oxides,
         test_size=remaining_frac,
         random_state=seed,
+        stratify=_strat(oxides),
     )
 
     val_of_remaining = val_frac / remaining_frac
@@ -86,6 +105,7 @@ def domain_shift_split(
         remaining,
         test_size=1.0 - val_of_remaining,
         random_state=seed,
+        stratify=_strat(remaining),
     )
 
     cal_of_rest2 = cal_frac / (remaining_frac - val_frac)
@@ -93,7 +113,12 @@ def domain_shift_split(
         rest2,
         test_size=1.0 - cal_of_rest2,
         random_state=seed,
+        stratify=_strat(rest2),
     )
+
+    drops = [s for s in [train, val, cal, test_id] if _BIN in s.columns]
+    for s in drops:
+        s.drop(columns=[_BIN], inplace=True)
 
     return {
         "train": train.reset_index(drop=True),

@@ -78,7 +78,7 @@ def run_domain_shift(df, features, target, seeds, model_params):
     feature_cols = [c for c in features.columns if c != "material_id"]
 
     for seed in seeds:
-        splits = domain_shift_split(df, seed=seed)
+        splits = domain_shift_split(df, seed=seed, stratify_col=target)
 
         X_train, y_train, _ = _merge_features(splits["train"], features, feature_cols, target)
         X_val, y_val, _ = _merge_features(splits["val"], features, feature_cols, target)

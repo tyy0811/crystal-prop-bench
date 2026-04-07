@@ -33,8 +33,11 @@ that would confound domain-shift analysis. The threshold was chosen to
 balance coverage (keeping most crystals) against purity (avoiding
 ambiguous classifications).
 
-**Dropped compounds:** [TO BE FILLED after data download — report count
-and percentage per family]
+**Dropped compounds:** 90,757 of 200,487 crystals (45.3%) from the
+Materials Project API query are dropped because they lack a dominant
+anion family at 80% purity (mixed-anion compounds, metals, intermetallics,
+etc.). The 109,730 classified crystals break down as: oxide 76,867 (70.1%),
+halide 16,540 (15.1%), sulfide 9,629 (8.8%), nitride 6,694 (6.1%).
 
 ## 4. Why Magpie descriptors
 
@@ -193,6 +196,19 @@ y-variance in the test set.
    was expanded. Voronoi features for the additional ~10K oxides were
    computed incrementally and merged into the existing cache. Larger
    training and test sets mechanically reduce seed sensitivity.
+
+**Final measured results (Tier 2 domshift formation energy, test_id):**
+
+| Stage                          | R² std | MAE std |
+|--------------------------------|--------|---------|
+| Original (unstratified, 15K)   | 0.103  | 0.017   |
+| + Option A (stratified, 15K)   | 0.048  | 0.007   |
+| + Option B (stratified, 25K)   | 0.040  | 0.002   |
+
+R² std reduced 61% overall. MAE std collapsed to 0.002, matching
+Tier 1 stability. Remaining R² spread (0.040) is driven by squared-error
+sensitivity to a few outlier crystals in one seed's test partition —
+the MAE stability confirms the model itself is stable across seeds.
 
 **Alternative considered and rejected:** Adding more seeds (5 instead
 of 3) was rejected because it averages over the same broken split
