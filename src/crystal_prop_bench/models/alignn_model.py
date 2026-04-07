@@ -206,8 +206,7 @@ def train_alignn(
             gpu_info = ""
             if device != "cpu" and torch.cuda.is_available():
                 mem = torch.cuda.memory_allocated() / 1e9
-                util = torch.cuda.utilization() if hasattr(torch.cuda, "utilization") else -1
-                gpu_info = f", gpu_mem={mem:.1f}GB, gpu_util={util}%"
+                gpu_info = f", gpu_mem={mem:.1f}GB"
             logger.info(
                 "Epoch %d/%d: train_mae=%.4f, val_mae=%.4f, best=%.4f, patience=%d/%d%s",
                 epoch + 1, epochs, np.mean(train_losses), val_mae,
