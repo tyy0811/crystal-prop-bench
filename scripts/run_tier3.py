@@ -151,7 +151,7 @@ def main(config_overrides: dict | None = None) -> None:
     adapter = MPAdapter(cache_dir=Path("data/mp"))
     df_full = adapter.load()
 
-    # Subsample oxides (same strategy as Tier 2)
+    # Subsample oxides (same strategy as Tier 2, smaller N due to GPU cost)
     OXIDE_SUBSAMPLE = 15000
     oxides = df_full[df_full["chemistry_family"] == "oxide"]
     minorities = df_full[df_full["chemistry_family"] != "oxide"]
@@ -192,7 +192,7 @@ def main(config_overrides: dict | None = None) -> None:
             )
 
             # Domain-shift split
-            splits = domain_shift_split(df, seed=seed)
+            splits = domain_shift_split(df, seed=seed, stratify_col=target)
             run_split(
                 "domshift", splits, graphs, target, seed, alignn_config,
                 test_keys=["test_id", "test_ood_sulfide", "test_ood_nitride", "test_ood_halide"],
