@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import copy
 import logging
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -123,6 +124,7 @@ def train_alignn(
     scheduler_patience: int = 10,
     batch_size: int = 256,
     device: str = "cuda",
+    epoch_checkpoint_path: Path | None = None,
 ) -> tuple[torch.nn.Module, np.ndarray, np.ndarray]:
     """Train ALIGNN and compute calibration residuals.
 
@@ -130,6 +132,9 @@ def train_alignn(
     - Val set for early stopping only.
     - Cal set held out, residuals computed post-training.
     - Returns (model, cal_residuals, cal_preds).
+
+    If epoch_checkpoint_path is provided, saves training state after each
+    epoch and resumes from it on restart.
     """
     torch.manual_seed(seed)
     g = torch.Generator()
@@ -159,8 +164,21 @@ def train_alignn(
     best_val_mae = float("inf")
     patience_counter = 0
     best_state = copy.deepcopy(model.state_dict())
+    start_epoch = 0
 
-    for epoch in range(epochs):
+    # Resume from epoch checkpoint if available
+    if epoch_checkpoint_path and epoch_checkpoint_path.exists():
+        ckpt = torch.load(epoch_checkpoint_path, map_location=device, weights_only=False)
+        model.load_state_dict(ckpt["model_state"])
+        optimizer.load_state_dict(ckpt["optimizer_state"])
+        scheduler.load_state_dict(ckpt["scheduler_state"])
+        best_val_mae = ckpt["best_val_mae"]
+        patience_counter = ckpt["patience_counter"]
+        best_state = ckpt["best_state"]
+        start_epoch = ckpt["epoch"] + 1
+        logger.info("Resumed from epoch %d (best_val_mae=%.4f)", start_epoch, best_val_mae)
+
+    for epoch in range(start_epoch, epochs):
         # Train
         model.train()
         train_losses: list[float] = []
@@ -213,12 +231,29 @@ def train_alignn(
                 best_val_mae, patience_counter, patience, gpu_info,
             )
 
+        # Save epoch checkpoint
+        if epoch_checkpoint_path:
+            epoch_checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+            torch.save({
+                "epoch": epoch,
+                "model_state": model.state_dict(),
+                "optimizer_state": optimizer.state_dict(),
+                "scheduler_state": scheduler.state_dict(),
+                "best_val_mae": best_val_mae,
+                "patience_counter": patience_counter,
+                "best_state": best_state,
+            }, epoch_checkpoint_path)
+
         if patience_counter >= patience:
             logger.info("Early stopping at epoch %d", epoch + 1)
             break
 
     model.load_state_dict(best_state)
     model.eval()
+
+    # Clean up epoch checkpoint after successful completion
+    if epoch_checkpoint_path and epoch_checkpoint_path.exists():
+        epoch_checkpoint_path.unlink()
 
     # Compute calibration residuals (cal set never seen during training)
     cal_preds = predict_alignn(model, graphs, cal_ids, device=device, batch_size=batch_size)

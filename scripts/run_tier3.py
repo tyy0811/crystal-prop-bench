@@ -120,6 +120,9 @@ def run_split(
             scheduler_patience=alignn_config["scheduler_patience"],
             batch_size=alignn_config["batch_size"],
             device=DEVICE,
+            epoch_checkpoint_path=Path(
+                f"results/epoch_ckpt/tier3_{split_name}_seed{seed}_{target_short}.pt"
+            ),
         )
 
         # Save cal predictions (reuse from train_alignn, no redundant forward pass)
