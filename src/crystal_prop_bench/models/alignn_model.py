@@ -148,12 +148,10 @@ def train_alignn(
     train_loader = DataLoader(
         train_ds, batch_size=batch_size, shuffle=True,
         collate_fn=collate_alignn, drop_last=False, generator=g,
-        num_workers=4, persistent_workers=True,
     )
     val_loader = DataLoader(
         val_ds, batch_size=batch_size, shuffle=False,
         collate_fn=collate_alignn,
-        num_workers=2, persistent_workers=True,
     )
 
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
