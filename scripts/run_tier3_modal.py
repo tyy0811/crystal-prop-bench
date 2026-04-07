@@ -97,7 +97,7 @@ def upload() -> None:
 
 @app.function(
     gpu="A100-80GB",
-    timeout=43200,  # 12 hours
+    timeout=86400,  # 24 hours
     image=image,
     volumes={REMOTE_ROOT: volume},
 )
