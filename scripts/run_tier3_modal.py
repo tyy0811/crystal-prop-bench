@@ -96,7 +96,7 @@ def upload() -> None:
 
 
 @app.function(
-    gpu="A100",
+    gpu="A10G",
     timeout=43200,  # 12 hours
     image=image,
     volumes={REMOTE_ROOT: volume},
@@ -137,7 +137,7 @@ def train_tier3(config_overrides: dict | None = None) -> str:
 def train(
     epochs: int = 200,
     lr: float = 0.001,
-    batch_size: int = 128,
+    batch_size: int = 32,
 ) -> None:
     """Launch Tier 3 training on Modal A10G GPU.
 

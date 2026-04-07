@@ -256,24 +256,26 @@ writing our own graph construction, training loop, and prediction
 export keeps the evaluation seam clean: training writes prediction
 parquets, evaluation reads them — same contract as Tiers 1-2.
 
-## 21. A100 40GB with batch_size=128 for ALIGNN training
+## 21. A10G with batch_size=32 for ALIGNN training
 
 Crystal graphs built with an 8.0 A cutoff and 12 nearest neighbors
-are dense — large unit cells produce graphs with thousands of edges.
-When batched, the combined graph's edge tensors dominate GPU memory.
+are extremely dense — large unit cells produce graphs with thousands
+of edges, and ALIGNN's line graph doubles this (one line graph node
+per atom graph edge). Edge features (80-dim) and triplet features
+(40-dim) make memory scale super-linearly with graph density.
 
 **Tested and rejected:**
-- A10G (24GB) with batch_size=128: OOM during forward pass (19.5GB
-  allocated, needed 2.25GB more for edge update).
-- A10G (24GB) with batch_size=32: fits, but ~4x slower per epoch.
-  Estimated 8-10 hours for 18 training runs at ~$9-11 total.
-- T4 (16GB): OOM at any practical batch size for the full dataset.
-- A100 80GB: fits batch_size=256, but the 50% higher hourly rate
-  vs 40GB yields no meaningful speedup (compute-bound, not
-  memory-bound at batch_size=128).
+- A100 40GB with batch_size=128: OOM (37GB allocated, needed 2.25GB
+  more). The few largest structures in a batch dominate memory.
+- A10G (24GB) with batch_size=128: OOM (19.5GB allocated).
+- T4 (16GB): OOM at any practical batch size.
 
-**Chosen: A100 40GB with batch_size=128.** Estimated 2-3 hours for
-18 training runs at ~$6-9 total. Best cost/performance ratio:
-the 40GB headroom comfortably fits batch_size=128, and A100's
-higher memory bandwidth (1.5 TB/s vs 600 GB/s on A10G) accelerates
-the message-passing kernels that dominate ALIGNN training.
+**Chosen: A10G (24GB) with batch_size=32.** Peak memory ~10GB,
+well within A10G capacity. At $1.10/hr, estimated 8-10 hours
+for 18 training runs (~$9-11 total). Smaller batches produce
+slightly noisier gradients but this often helps generalization.
+
+The batch_size=32 constraint is inherent to the 8.0 A cutoff
+generating dense graphs. Reducing cutoff would shrink graphs
+but degrade model quality. This is the standard tradeoff in
+crystal GNN training.
