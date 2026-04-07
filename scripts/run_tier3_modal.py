@@ -38,18 +38,33 @@ results_volume = modal.Volume.from_name("crystal-prop-bench-results", create_if_
     gpu="A10G",
     timeout=7200,
     image=image,
-    volumes={"/data": data_volume, "/results": results_volume},
+    volumes={
+        "/root/data": data_volume,
+        "/root/results": results_volume,
+    },
 )
 def train_tier3(config_overrides: dict | None = None) -> str:
-    """Run Tier 3 training on GPU."""
+    """Run Tier 3 training on GPU.
+
+    Volumes are mounted at /root/data and /root/results, matching
+    the relative paths used by the training code when cwd is /root.
+    """
+    import os
     import subprocess
     import sys
+
+    os.chdir("/root")
 
     # Install the package
     subprocess.run([sys.executable, "-m", "pip", "install", "-e", "."], check=True)
 
     from scripts.run_tier3 import main
     main(config_overrides)
+
+    # Commit writes to persistent volumes
+    data_volume.commit()
+    results_volume.commit()
+
     return "Tier 3 training complete"
 
 

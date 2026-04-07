@@ -1,4 +1,4 @@
-.PHONY: download-data run-tier1 run-tier2 run-tier3 run-tier3-modal run-evaluation run-shap run-plots run-all lint test
+.PHONY: download-data run-tier1 run-tier2 run-tier3 run-tier3-modal run-evaluation run-shap run-plots run-all run-all-gpu lint test
 
 download-data:
 	python scripts/download_data.py
@@ -24,7 +24,9 @@ run-shap:
 run-plots:
 	python scripts/run_plots.py
 
-run-all: download-data run-tier1 run-tier2 run-tier3 run-evaluation run-shap run-plots
+run-all: download-data run-tier1 run-tier2 run-evaluation run-shap run-plots
+
+run-all-gpu: download-data run-tier1 run-tier2 run-tier3 run-evaluation run-shap run-plots
 
 lint:
 	ruff check .

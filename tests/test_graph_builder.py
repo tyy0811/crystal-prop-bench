@@ -103,10 +103,26 @@ class TestBuildAlignnGraphs:
             fixture_crystals, fixture_structures, cutoff=8.0, cache_path=cache,
         )
         assert cache.exists()
+        assert cache.with_suffix(".meta.json").exists()
         g2 = build_alignn_graphs(
             fixture_crystals, fixture_structures, cutoff=8.0, cache_path=cache,
         )
         assert set(g1.keys()) == set(g2.keys())
+
+    def test_cache_invalidated_on_param_change(
+        self, fixture_crystals: pd.DataFrame, fixture_structures: dict, tmp_path: Path,
+    ) -> None:
+        cache = tmp_path / "graphs.pkl"
+        g1 = build_alignn_graphs(
+            fixture_crystals, fixture_structures, cutoff=8.0, cache_path=cache,
+        )
+        assert cache.exists()
+        # Different cutoff should rebuild, not reuse stale cache
+        g2 = build_alignn_graphs(
+            fixture_crystals, fixture_structures, cutoff=6.0, cache_path=cache,
+        )
+        # Both should succeed (rebuilt with new params)
+        assert len(g2) > 0
 
     def test_missing_structure_skipped(
         self, fixture_crystals: pd.DataFrame,

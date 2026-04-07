@@ -6,6 +6,8 @@ using JARVIS/ALIGNN graph utilities. Handles caching and failure logging.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 import pickle
 from pathlib import Path
@@ -53,6 +55,84 @@ def build_alignn_graph(
     return g, lg, lattice_mat
 
 
+def _cache_key(
+    material_ids: list[str],
+    cutoff: float,
+    max_neighbors: int,
+) -> str:
+    """Deterministic hash of graph build parameters and requested IDs."""
+    manifest = json.dumps({
+        "ids": sorted(material_ids),
+        "cutoff": cutoff,
+        "max_neighbors": max_neighbors,
+    }, sort_keys=True)
+    return hashlib.sha256(manifest.encode()).hexdigest()[:16]
+
+
+def _load_validated_cache(
+    cache_path: Path,
+    requested_ids: set[str],
+    cutoff: float,
+    max_neighbors: int,
+) -> dict[str, tuple] | None:
+    """Load cache only if it matches current parameters and covers requested IDs."""
+    meta_path = cache_path.with_suffix(".meta.json")
+    if not cache_path.exists() or not meta_path.exists():
+        return None
+
+    with open(meta_path) as f:
+        meta = json.load(f)
+
+    if meta.get("cutoff") != cutoff or meta.get("max_neighbors") != max_neighbors:
+        logger.info(
+            "Cache parameters mismatch (cutoff=%s/%s, max_neighbors=%s/%s), rebuilding",
+            meta.get("cutoff"), cutoff, meta.get("max_neighbors"), max_neighbors,
+        )
+        return None
+
+    with open(cache_path, "rb") as f:
+        graphs = pickle.load(f)
+
+    cached_ids = set(graphs.keys())
+    missing = requested_ids - cached_ids
+    if missing:
+        logger.warning(
+            "Cache missing %d/%d requested IDs, rebuilding",
+            len(missing), len(requested_ids),
+        )
+        return None
+
+    logger.info(
+        "Loaded validated ALIGNN graph cache: %d graphs from %s",
+        len(graphs), cache_path,
+    )
+    return graphs  # type: ignore[no-any-return]
+
+
+def _save_cache(
+    cache_path: Path,
+    graphs: dict[str, tuple],
+    cutoff: float,
+    max_neighbors: int,
+) -> None:
+    """Save graphs and metadata for cache validation."""
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(cache_path, "wb") as fw:
+        pickle.dump(graphs, fw)
+
+    meta = {
+        "cutoff": cutoff,
+        "max_neighbors": max_neighbors,
+        "n_graphs": len(graphs),
+        "ids": sorted(graphs.keys()),
+    }
+    meta_path = cache_path.with_suffix(".meta.json")
+    with open(meta_path, "w") as fm:
+        json.dump(meta, fm)
+
+    logger.info("Cached %d ALIGNN graphs to %s", len(graphs), cache_path)
+
+
 def build_alignn_graphs(
     df: pd.DataFrame,
     structures: dict[str, Structure],
@@ -68,21 +148,23 @@ def build_alignn_graphs(
     structures : material_id -> pymatgen Structure mapping.
     cutoff : Bond distance cutoff in Angstroms.
     max_neighbors : Max neighbors per atom.
-    cache_path : If provided, cache graphs as pickle.
+    cache_path : If provided, cache graphs as pickle with metadata sidecar.
 
     Returns
     -------
     Dict mapping material_id to (atom_graph, line_graph, lattice_mat).
     Structures that fail graph construction are dropped and logged.
     """
-    if cache_path and cache_path.exists():
-        logger.info("Loading cached ALIGNN graphs from %s", cache_path)
-        with open(cache_path, "rb") as f:
-            return pickle.load(f)  # type: ignore[no-any-return]
+    material_ids = df["material_id"].values
+    requested_ids = {mid for mid in material_ids if mid in structures}
+
+    if cache_path:
+        cached = _load_validated_cache(cache_path, requested_ids, cutoff, max_neighbors)
+        if cached is not None:
+            return cached
 
     from joblib import Parallel, delayed  # type: ignore[import-untyped]
 
-    material_ids = df["material_id"].values
     families = df["chemistry_family"].values if "chemistry_family" in df.columns else None
 
     work_items = []
@@ -129,10 +211,13 @@ def build_alignn_graphs(
     for family, count in sorted(failed_by_family.items()):
         logger.info("  Failed in %s: %d", family, count)
 
+    if n_failed > 0:
+        logger.warning(
+            "ALIGNN graph construction dropped %d structures (%.1f%% failure rate)",
+            n_failed, 100.0 * n_failed / len(work_items),
+        )
+
     if cache_path:
-        cache_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(cache_path, "wb") as fw:
-            pickle.dump(graphs, fw)
-        logger.info("Cached ALIGNN graphs to %s", cache_path)
+        _save_cache(cache_path, graphs, cutoff, max_neighbors)
 
     return graphs
