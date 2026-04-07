@@ -239,6 +239,10 @@ most crystal structures. Capping at 12 neighbors controls graph
 density and keeps memory usage predictable across structures with
 varying coordination environments.
 
+This cutoff was held fixed even when training cost became a concern
+(see Decision 22) — changing it would break the experimental contract
+with Tiers 1–2 and require rerunning all evaluations.
+
 ## 19. Why mean pooling for intensive properties
 
 Formation energy per atom and band gap are intensive properties
