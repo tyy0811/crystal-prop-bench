@@ -79,17 +79,23 @@ Materials Project crystals, with a focus on:
 
 10. **GNN does not solve domain shift — and sulfides reveal a systematic bias.**
     Under chemistry shift, Tier 3 formation energy degrades 15.7× on sulfides,
-    6.5× on nitrides, and 4.5× on halides. The sulfide result is striking:
-    ALIGNN's sulfide MAE (0.918) is 3.3× *worse* than Tier 1's (0.280).
-    Investigation reveals a systematic energy bias of +0.897 eV/atom — the GNN
-    learned oxide-specific energy corrections that anti-transfer to sulfides,
-    whose formation energies are systematically more negative. Predictions are
-    not collapsed (variance ratio 0.76) but uniformly shifted. On nitrides and
-    halides, ALIGNN actually *beats* Tier 1 OOD (1.5× and 2.9× better
-    respectively), showing the failure is sulfide-specific, not architectural.
-    Tier 3 uses a 3+3 layer configuration (see Decision 22); whether the
-    sulfide bias would differ at the published 4+4 depth is an open question.
-    Band gap shift is moderate (1.2–2.8×), similar to Tiers 1–2.
+    6.5× on nitrides, and 4.5× on halides. Sulfide predictions are shifted,
+    not collapsed: `y_true` mean = -1.120 eV/atom, `y_pred` mean = -0.223,
+    giving a systematic bias of +0.897 eV/atom. Variance ratio = 0.762 —
+    predictions have reasonable spread, not collapsed to the dataset mean.
+    The model learned oxide energy scales and cannot shift them for sulfides.
+
+    | Family | Tier 1 MAE | Tier 3 MAE | Tier 3 / Tier 1 | Systematic bias |
+    |--------|-----------|-----------|-----------------|-----------------|
+    | Sulfide | 0.280 | 0.918 | 3.3× worse | +0.897 eV |
+    | Nitride | 0.578 | 0.379 | 1.5× better | +0.213 eV |
+    | Halide | 0.754 | 0.262 | 2.9× better | -0.039 eV |
+
+    On nitrides and halides, ALIGNN actually *beats* Tier 1 OOD, showing the
+    failure is sulfide-specific, not architectural. Tier 3 uses a 3+3 layer
+    configuration (see Decision 22); whether the sulfide bias would differ at
+    the published 4+4 depth is an open question. Band gap shift is moderate
+    (1.2–2.8×), similar to Tiers 1–2.
 
 11. **The UQ finding generalizes to GNNs.** Conformal prediction intervals
     calibrated on oxides collapse on OOD families for Tier 3, just as they do
