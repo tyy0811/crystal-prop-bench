@@ -52,7 +52,7 @@ def compute_magpie_features(
             logger.info("  Featurized %d/%d", i + 1, len(df))
 
     feature_df = pd.DataFrame(feature_rows, columns=feature_labels)
-    feature_df.insert(0, "material_id", df["material_id"].values)
+    feature_df.insert(0, "material_id", df["material_id"].values)  # type: ignore[arg-type]
 
     if cache_path:
         cache_path.parent.mkdir(parents=True, exist_ok=True)

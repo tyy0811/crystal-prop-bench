@@ -58,6 +58,8 @@ module = [
     "lightgbm.*",
     "mlflow.*",
     "pymatgen.*",
+    "sklearn.*",
+    "joblib.*",
     "torch.*",
     "dgl.*",
     "alignn.*",
