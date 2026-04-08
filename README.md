@@ -91,6 +91,10 @@ Materials Project crystals, with a focus on:
     | Nitride | 0.578 | 0.379 | 1.5× better | +0.213 eV |
     | Halide | 0.754 | 0.262 | 2.9× better | -0.039 eV |
 
+    Despite the sulfide-specific failure, the calibration efficiency result
+    from Finding 6 still applies to Tier 3 — the recalibration recipe is
+    architecture-agnostic (Finding 11).
+
     On nitrides and halides, ALIGNN actually *beats* Tier 1 OOD, showing the
     failure is sulfide-specific, not architectural. Tier 3 uses a 3+3 layer
     configuration (see Decision 22); whether the sulfide bias would differ at
@@ -127,9 +131,9 @@ Formation energy is most affected — halides show 6.0× MAE degradation:
 
 | Target | OOD Family | ID MAE | OOD MAE | Degradation |
 |--------|-----------|--------|---------|-------------|
-| Formation Energy | Sulfide | 0.123 | 0.279 | 2.3× |
-| Formation Energy | Nitride | 0.123 | 0.580 | 4.7× |
-| Formation Energy | Halide | 0.123 | 0.735 | 6.0× |
+| Formation Energy | Sulfide | 0.123 | 0.280 | 2.3× |
+| Formation Energy | Nitride | 0.123 | 0.578 | 4.7× |
+| Formation Energy | Halide | 0.123 | 0.754 | 6.1× |
 | Band Gap | Sulfide | 0.533 | 0.626 | 1.2× |
 | Band Gap | Nitride | 0.533 | 0.769 | 1.4× |
 | Band Gap | Halide | 0.533 | 1.297 | 2.4× |
@@ -248,6 +252,9 @@ make run-all
   deferred to future work. Tier 3's OOD degradation on sulfides is more severe
   than Tier 1's (see Finding 10) — whether this is an artifact of the 3+3
   depth or inherent to GNN OOD transfer warrants further investigation.
+  Practitioners deploying ALIGNN-family models on new chemistry classes should
+  verify prediction distributions against a small DFT-validated calibration set
+  before trusting outputs.
 - **Single seed for Tier 3.** Tiers 1–2 report mean ± std over 3 seeds;
   Tier 3 reports a single seed due to GPU training cost (~$70 for 6 runs).
 - **DFT properties, not experimental.** All target values are computed, not measured.
