@@ -6,9 +6,7 @@ Runs: load fixture -> featurize (from cache) -> split -> train -> predict
 
 from __future__ import annotations
 
-import numpy as np
 import pandas as pd
-import pytest
 
 from crystal_prop_bench.data.splits import standard_split
 from crystal_prop_bench.evaluation.conformal import evaluate_conformal_coverage

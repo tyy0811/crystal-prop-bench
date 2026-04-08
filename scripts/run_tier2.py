@@ -12,7 +12,6 @@ from pathlib import Path
 
 import joblib
 import mlflow
-import numpy as np
 import pandas as pd
 import yaml
 
@@ -74,11 +73,17 @@ def train_and_predict(
 
     metrics = compute_metrics(test_m[target].values, test_preds)
     mlflow.log_metrics({f"{test_split_key}_{k}": v for k, v in metrics.items()})
-    logger.info("%s %s %s %s seed=%d: %s", tier_label, split_label, target, test_split_key, seed, metrics)
+    logger.info(
+        "%s %s %s %s seed=%d: %s",
+        tier_label, split_label, target, test_split_key, seed, metrics,
+    )
 
     if test_split_key in ("test", "test_id"):
         MODELS_DIR.mkdir(parents=True, exist_ok=True)
-        joblib.dump(model, MODELS_DIR / f"{tier_label}_{split_label}_seed{seed}_{target_short}.joblib")
+        joblib.dump(
+            model,
+            MODELS_DIR / f"{tier_label}_{split_label}_seed{seed}_{target_short}.joblib",
+        )
 
 
 def main() -> None:
@@ -158,7 +163,10 @@ def main() -> None:
                 )
 
             with mlflow.start_run(run_name=f"tier1sub_standard_{target}_seed{seed}"):
-                mlflow.log_params({"tier": "1_voronoi_subset", "split": "standard", "target": target, "seed": seed})
+                mlflow.log_params({
+                    "tier": "1_voronoi_subset", "split": "standard",
+                    "target": target, "seed": seed,
+                })
                 train_and_predict(
                     train, val, cal, test, magpie_voronoi, target, seed,
                     "tier1sub", "standard", "test", model_params,
@@ -167,11 +175,18 @@ def main() -> None:
             splits = domain_shift_split(df_voronoi, seed=seed, stratify_col=target)
 
             with mlflow.start_run(run_name=f"tier2_domshift_{target}_seed{seed}"):
-                mlflow.log_params({"tier": 2, "split": "domain_shift", "target": target, "seed": seed})
-                for split_key in ["test_id", "test_ood_sulfide", "test_ood_nitride", "test_ood_halide"]:
+                mlflow.log_params({
+                    "tier": 2, "split": "domain_shift",
+                    "target": target, "seed": seed,
+                })
+                for split_key in [
+                    "test_id", "test_ood_sulfide",
+                    "test_ood_nitride", "test_ood_halide",
+                ]:
                     train_and_predict(
-                        splits["train"], splits["val"], splits["cal"], splits[split_key],
-                        voronoi_features, target, seed, "tier2", "domshift", split_key, model_params,
+                        splits["train"], splits["val"], splits["cal"],
+                        splits[split_key], voronoi_features, target, seed,
+                        "tier2", "domshift", split_key, model_params,
                     )
 
 

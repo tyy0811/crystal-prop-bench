@@ -1,6 +1,5 @@
 # tests/test_featurizers.py
 import pandas as pd
-import pytest
 
 from crystal_prop_bench.data.featurizers import compute_magpie_features
 
@@ -43,7 +42,7 @@ class TestMagpieFeaturizer:
         assert not result[feature_cols].isna().any().any()
 
 
-from crystal_prop_bench.data.featurizers import compute_voronoi_features
+from crystal_prop_bench.data.featurizers import compute_voronoi_features  # noqa: E402
 
 
 class TestVoronoiFeaturizer:

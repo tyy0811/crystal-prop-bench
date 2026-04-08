@@ -10,7 +10,6 @@ import logging
 from pathlib import Path
 
 import joblib
-import numpy as np
 import pandas as pd
 import yaml
 
@@ -18,7 +17,7 @@ from crystal_prop_bench.data.featurizers import compute_magpie_features
 from crystal_prop_bench.data.mp_adapter import MPAdapter
 
 VORONOI_CACHE = Path("data/mp/voronoi_features_sub.parquet")
-from crystal_prop_bench.evaluation.explainability import (
+from crystal_prop_bench.evaluation.explainability import (  # noqa: E402
     compute_shap_values,
     extract_failure_cases,
     global_feature_importance,
@@ -44,7 +43,7 @@ def main() -> None:
     features = compute_magpie_features(
         df, cache_path=Path("data/mp/magpie_features.parquet")
     )
-    feature_cols = [c for c in features.columns if c != "material_id"]
+    _feature_cols = [c for c in features.columns if c != "material_id"]
 
     # Use seed 42, standard split, formation energy as representative
     seed = config["evaluation"]["seeds"][0]

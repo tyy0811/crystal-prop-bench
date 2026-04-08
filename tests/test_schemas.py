@@ -3,7 +3,7 @@ import pandas as pd
 import pandera as pa
 import pytest
 
-from crystal_prop_bench.data.schemas import CrystalSchema, validate_crystal_df
+from crystal_prop_bench.data.schemas import validate_crystal_df
 
 
 class TestCrystalSchema:

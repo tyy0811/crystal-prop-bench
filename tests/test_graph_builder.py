@@ -113,7 +113,7 @@ class TestBuildAlignnGraphs:
         self, fixture_crystals: pd.DataFrame, fixture_structures: dict, tmp_path: Path,
     ) -> None:
         cache = tmp_path / "graphs.pkl"
-        g1 = build_alignn_graphs(
+        _g1 = build_alignn_graphs(
             fixture_crystals, fixture_structures, cutoff=8.0, cache_path=cache,
         )
         assert cache.exists()

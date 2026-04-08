@@ -58,7 +58,7 @@ def plot_conformal_coverage(
 
     fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 
-    for ax, target in zip(axes, ["ef", "bg"]):
+    for ax, target in zip(axes, ["ef", "bg"], strict=True):
         target_df = df[df["target"] == target]
         for tier in target_df["tier"].unique():
             tier_df = target_df[target_df["tier"] == tier]
@@ -131,7 +131,7 @@ def plot_shap_summary(
     """Horizontal bar chart of top-N global SHAP importance per tier."""
     fig, axes = plt.subplots(1, 2, figsize=(14, 6))
 
-    for ax, tier in zip(axes, ["tier1", "tier2"]):
+    for ax, tier in zip(axes, ["tier1", "tier2"], strict=True):
         csv_path = tables_dir / f"shap_importance_{tier}.csv"
         if not csv_path.exists():
             ax.set_title(f"{tier} — not available")

@@ -139,7 +139,10 @@ def build_conformal_table(config: dict) -> pd.DataFrame:
                     if split == "standard":
                         test_keys = ["test"]
                     else:
-                        test_keys = ["test_id", "test_ood_sulfide", "test_ood_nitride", "test_ood_halide"]
+                        test_keys = [
+                            "test_id", "test_ood_sulfide",
+                            "test_ood_nitride", "test_ood_halide",
+                        ]
 
                     for test_key in test_keys:
                         test_files = list(PREDICTIONS_DIR.glob(
@@ -196,7 +199,9 @@ def build_calibration_sweep_table(config: dict) -> pd.DataFrame:
                     except ValueError:
                         continue
 
-                    for (cal_subset, test_remainder), cal_size in zip(pairs, cal_sizes):
+                    for (cal_subset, test_remainder), cal_size in zip(
+                        pairs, cal_sizes, strict=True,
+                    ):
                         cal_resid = np.abs(
                             cal_subset["y_true"].values - cal_subset["y_pred"].values
                         )
@@ -236,7 +241,9 @@ def build_bias_check_table(config: dict) -> pd.DataFrame:
         target_short = "ef" if target == "formation_energy_per_atom" else "bg"
 
         for seed in config["evaluation"]["seeds"]:
-            for tier_label, label in [("tier1", "tier1_full"), ("tier1sub", "tier1_voronoi_subset")]:
+            for tier_label, label in [
+                ("tier1", "tier1_full"), ("tier1sub", "tier1_voronoi_subset"),
+            ]:
                 files = list(PREDICTIONS_DIR.glob(
                     f"{tier_label}_standard_seed{seed}_{target_short}_test.parquet"
                 ))

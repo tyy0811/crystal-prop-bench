@@ -29,7 +29,7 @@ class TestConformalRegressionInterval:
         rng = np.random.RandomState(42)
         alpha = 0.10
         coverages = []
-        for trial in range(50):
+        for _trial in range(50):
             # Draw cal and test from the SAME distribution (exchangeable)
             all_errors = rng.exponential(scale=1.0, size=200)
             all_preds = rng.randn(200)

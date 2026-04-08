@@ -165,7 +165,7 @@ class TestOODCalibrationSweep:
         })
         cal_sizes = [5, 10, 25]
         pairs = ood_calibration_sweep(df, cal_sizes=cal_sizes, seed=42)
-        for (cal, test), expected_size in zip(pairs, cal_sizes):
+        for (cal, test), expected_size in zip(pairs, cal_sizes, strict=True):
             assert len(cal) == expected_size
             assert len(test) == 200 - expected_size
 

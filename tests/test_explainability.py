@@ -1,6 +1,5 @@
 # tests/test_explainability.py
 import numpy as np
-import pytest
 
 
 class TestSHAPExplainer:

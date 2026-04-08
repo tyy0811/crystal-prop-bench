@@ -44,13 +44,21 @@ class TestBuildAlignn:
 
 class TestALIGNNDataset:
     def test_length(self, small_graphs: dict, fixture_crystals: pd.DataFrame) -> None:
-        graph_ids = [mid for mid in fixture_crystals["material_id"].head(20) if mid in small_graphs]
+        graph_ids = [
+            mid for mid in fixture_crystals["material_id"].head(20)
+            if mid in small_graphs
+        ]
         targets = np.random.randn(len(graph_ids))
         ds = ALIGNNDataset(small_graphs, graph_ids, targets)
         assert len(ds) == len(graph_ids)
 
-    def test_getitem_returns_quad(self, small_graphs: dict, fixture_crystals: pd.DataFrame) -> None:
-        graph_ids = [mid for mid in fixture_crystals["material_id"].head(20) if mid in small_graphs]
+    def test_getitem_returns_quad(
+        self, small_graphs: dict, fixture_crystals: pd.DataFrame,
+    ) -> None:
+        graph_ids = [
+            mid for mid in fixture_crystals["material_id"].head(20)
+            if mid in small_graphs
+        ]
         targets = np.random.randn(len(graph_ids))
         ds = ALIGNNDataset(small_graphs, graph_ids, targets)
         g, lg, lat, t = ds[0]
@@ -62,8 +70,13 @@ class TestALIGNNDataset:
 
 
 class TestCollateAlignn:
-    def test_batches_graphs(self, small_graphs: dict, fixture_crystals: pd.DataFrame) -> None:
-        graph_ids = [mid for mid in fixture_crystals["material_id"].head(20) if mid in small_graphs]
+    def test_batches_graphs(
+        self, small_graphs: dict, fixture_crystals: pd.DataFrame,
+    ) -> None:
+        graph_ids = [
+            mid for mid in fixture_crystals["material_id"].head(20)
+            if mid in small_graphs
+        ]
         targets = np.random.randn(len(graph_ids))
         ds = ALIGNNDataset(small_graphs, graph_ids, targets)
         batch = collate_alignn([ds[i] for i in range(min(4, len(ds)))])
@@ -123,7 +136,10 @@ class TestTrainAlignn:
         self, small_graphs: dict, fixture_crystals: pd.DataFrame,
     ) -> None:
         """Smoke test: train for 2 epochs on tiny data, verify contract."""
-        graph_ids = [mid for mid in fixture_crystals["material_id"].head(20) if mid in small_graphs]
+        graph_ids = [
+            mid for mid in fixture_crystals["material_id"].head(20)
+            if mid in small_graphs
+        ]
         if len(graph_ids) < 8:
             pytest.skip("Not enough graphs for train/val/cal split")
 

@@ -164,7 +164,9 @@ def mixed_train_split(
         "test": test,
     }
     for family in ["oxide", "sulfide", "nitride", "halide"]:
-        family_test = test[test["chemistry_family"] == family].reset_index(drop=True)
+        family_test = test[
+            test["chemistry_family"] == family
+        ].reset_index(drop=True)
         if len(family_test) > 0:
             result[f"test_{family}"] = family_test
 

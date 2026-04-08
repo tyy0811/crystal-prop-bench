@@ -10,7 +10,6 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 from matminer.featurizers.composition import ElementProperty
 from pymatgen.core import Composition
@@ -168,7 +167,7 @@ def compute_voronoi_features(
     failed_count = len(missing_ids)
     failed_by_family: dict[str, int] = {}
 
-    for (mid, _, family), feat_result in zip(work_items, results):
+    for (mid, _, family), feat_result in zip(work_items, results, strict=True):
         if feat_result is not None:
             successful_ids.append(mid)
             struct_feature_rows.append(feat_result)
@@ -176,7 +175,7 @@ def compute_voronoi_features(
             failed_count += 1
             failed_by_family[family] = failed_by_family.get(family, 0) + 1
 
-    for mid, family in missing_ids:
+    for _mid, family in missing_ids:
         failed_by_family[family] = failed_by_family.get(family, 0) + 1
 
     logger.info(

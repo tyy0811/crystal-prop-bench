@@ -11,7 +11,6 @@ from pathlib import Path
 
 import joblib
 import mlflow
-import numpy as np
 import yaml
 
 from crystal_prop_bench.data.featurizers import compute_magpie_features
@@ -100,9 +99,13 @@ def run_domain_shift(df, features, target, seeds, model_params):
                 "domshift_cal", f"tier1_domshift_seed{seed}_{target_short}_cal.parquet",
             )
 
-            for split_key in ["test_id", "test_ood_sulfide", "test_ood_nitride", "test_ood_halide"]:
+            for split_key in [
+                "test_id", "test_ood_sulfide", "test_ood_nitride", "test_ood_halide",
+            ]:
                 test_df = splits[split_key]
-                X_test, y_test, test_merged = _merge_features(test_df, features, feature_cols, target)
+                X_test, y_test, test_merged = _merge_features(
+                    test_df, features, feature_cols, target,
+                )
                 if len(test_merged) == 0:
                     continue
 
@@ -152,7 +155,9 @@ def run_mixed_train(df, features, target, seeds, model_params):
             # Per-family test evaluation
             for key in [k for k in splits if k.startswith("test")]:
                 test_df = splits[key]
-                X_test, y_test, test_merged = _merge_features(test_df, features, feature_cols, target)
+                X_test, y_test, test_merged = _merge_features(
+                    test_df, features, feature_cols, target,
+                )
                 if len(test_merged) == 0:
                     continue
 

@@ -1,5 +1,4 @@
 # tests/test_domain_shift.py
-import numpy as np
 import pytest
 
 from crystal_prop_bench.evaluation.domain_shift import compute_degradation_ratios

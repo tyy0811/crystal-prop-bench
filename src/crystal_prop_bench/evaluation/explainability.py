@@ -30,7 +30,7 @@ def global_feature_importance(
     """
     mean_abs = np.mean(np.abs(shap_values), axis=0)
     ranked = sorted(
-        zip(feature_names, mean_abs),
+        zip(feature_names, mean_abs, strict=True),
         key=lambda x: x[1],
         reverse=True,
     )

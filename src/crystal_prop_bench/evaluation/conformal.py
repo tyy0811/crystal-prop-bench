@@ -51,7 +51,9 @@ def evaluate_conformal_coverage(
 
     results = []
     for alpha in alphas:
-        lower, upper = conformal_regression_interval(cal_residuals, y_pred, alpha)
+        lower, upper = conformal_regression_interval(
+            cal_residuals, y_pred, alpha,
+        )
         covered = ((y_true >= lower) & (y_true <= upper)).mean()
         width = (upper - lower).mean()
         results.append({

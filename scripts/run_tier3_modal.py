@@ -51,7 +51,7 @@ def upload() -> None:
     """
     import subprocess
 
-    local_root = Path(".")
+    _local_root = Path(".")
 
     # Upload data directory
     print("Uploading data/mp/ ...")
