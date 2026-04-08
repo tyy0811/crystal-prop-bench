@@ -9,7 +9,7 @@ well-calibrated, and honest about their limitations. Most materials ML benchmark
 report accuracy on random test splits — they don't ask what happens when the model
 encounters a chemistry it wasn't trained on.
 
-This benchmark evaluates tabular models (composition-only and structure-aware) on
+This benchmark evaluates tabular and graph neural network models on
 Materials Project crystals, with a focus on:
 
 1. **Domain-shift degradation** — how much does prediction quality degrade when
@@ -66,6 +66,30 @@ Materials Project crystals, with a focus on:
    fail on different crystals for different structural reasons — an ensemble
    combining both could reduce worst-case errors substantially.
 
+8. **GNN halves formation energy error.** ALIGNN (Tier 3) achieves MAE = 0.051
+   eV/atom on formation energy — a 51% reduction over Voronoi features (0.105)
+   and 59% over Magpie (0.124). R² improves from 0.946 to 0.986. Angular
+   message passing captures coordination geometry far more effectively than
+   hand-crafted Voronoi statistics.
+
+9. **GNN advantage is smaller for band gap.** Tier 3 band gap MAE = 0.337 eV
+   vs. Tier 2's 0.440 — a 23% improvement. This smaller margin confirms that
+   band gap prediction benefits from structural information but is fundamentally
+   harder (electronic structure depends on orbital overlap, not just geometry).
+
+10. **GNN does not solve domain shift.** Under chemistry shift, Tier 3 formation
+    energy degrades 15.7× on sulfides (MAE 0.059 → 0.918), worse than Tier 1's
+    2.3× degradation. The GNN's superior in-distribution performance comes with
+    sharper OOD collapse — it learns oxide-specific structural patterns that
+    transfer even less than composition features. Band gap shift is moderate
+    (1.2–2.8×), similar to Tiers 1–2.
+
+11. **The UQ finding generalizes to GNNs.** Conformal prediction intervals
+    calibrated on oxides collapse on OOD families for Tier 3, just as they do
+    for Tiers 1–2. The recalibration finding (25 OOD samples restore coverage)
+    applies regardless of model architecture — it's a property of the conformal
+    method, not the predictor.
+
 ## Benchmark Results
 
 | Tier | Split | Target | MAE | R² |
@@ -78,6 +102,10 @@ Materials Project crystals, with a focus on:
 | Tier 2 (Voronoi) | Standard | Band Gap | 0.443 ± 0.005 eV | 0.830 ± 0.004 |
 | Tier 2 (Voronoi) | Domain-Shift (ID) | Formation Energy | 0.130 ± 0.002 eV/atom | 0.834 ± 0.040 |
 | Tier 2 (Voronoi) | Domain-Shift (ID) | Band Gap | 0.574 ± 0.016 eV | 0.741 ± 0.004 |
+| Tier 3 (ALIGNN) | Standard | Formation Energy | 0.051 eV/atom | 0.986 |
+| Tier 3 (ALIGNN) | Standard | Band Gap | 0.337 eV | 0.848 |
+| Tier 3 (ALIGNN) | Domain-Shift (ID) | Formation Energy | 0.059 eV/atom | 0.979 |
+| Tier 3 (ALIGNN) | Domain-Shift (ID) | Band Gap | 0.510 eV | 0.718 |
 
 ## Domain-Shift Analysis
 
@@ -181,6 +209,11 @@ make run-tier1
 # Run Tier 2 (structural features)
 make run-tier2
 
+# Run Tier 3 (ALIGNN graph neural network, requires GPU extras)
+pip install -e ".[gpu]"
+make run-tier3           # local GPU
+make run-tier3-modal     # Modal cloud GPU
+
 # Run evaluation
 make run-evaluation
 
@@ -198,7 +231,10 @@ make run-all
 
 - **Materials Project only.** No cross-database generalization (JARVIS, OQMD)
   in this version.
-- **Tabular models only.** GNN evaluation (CGCNN) planned for Phase B.
+- **Single GNN architecture.** ALIGNN only; equivariant models (MACE, NequIP)
+  deferred to future work.
+- **Single seed for Tier 3.** Tiers 1–2 report mean ± std over 3 seeds;
+  Tier 3 reports a single seed due to GPU training cost (~$70 for 6 runs).
 - **DFT properties, not experimental.** All target values are computed, not measured.
 - **Four chemistry families.** Domain shift is evaluated across oxide/sulfide/
   nitride/halide — other chemistries are filtered out.
