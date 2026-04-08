@@ -77,12 +77,19 @@ Materials Project crystals, with a focus on:
    band gap prediction benefits from structural information but is fundamentally
    harder (electronic structure depends on orbital overlap, not just geometry).
 
-10. **GNN does not solve domain shift.** Under chemistry shift, Tier 3 formation
-    energy degrades 15.7× on sulfides (MAE 0.059 → 0.918), worse than Tier 1's
-    2.3× degradation. The GNN's superior in-distribution performance comes with
-    sharper OOD collapse — it learns oxide-specific structural patterns that
-    transfer even less than composition features. Band gap shift is moderate
-    (1.2–2.8×), similar to Tiers 1–2.
+10. **GNN does not solve domain shift — and sulfides reveal a systematic bias.**
+    Under chemistry shift, Tier 3 formation energy degrades 15.7× on sulfides,
+    6.5× on nitrides, and 4.5× on halides. The sulfide result is striking:
+    ALIGNN's sulfide MAE (0.918) is 3.3× *worse* than Tier 1's (0.280).
+    Investigation reveals a systematic energy bias of +0.897 eV/atom — the GNN
+    learned oxide-specific energy corrections that anti-transfer to sulfides,
+    whose formation energies are systematically more negative. Predictions are
+    not collapsed (variance ratio 0.76) but uniformly shifted. On nitrides and
+    halides, ALIGNN actually *beats* Tier 1 OOD (1.5× and 2.9× better
+    respectively), showing the failure is sulfide-specific, not architectural.
+    Tier 3 uses a 3+3 layer configuration (see Decision 22); whether the
+    sulfide bias would differ at the published 4+4 depth is an open question.
+    Band gap shift is moderate (1.2–2.8×), similar to Tiers 1–2.
 
 11. **The UQ finding generalizes to GNNs.** Conformal prediction intervals
     calibrated on oxides collapse on OOD families for Tier 3, just as they do
@@ -232,7 +239,9 @@ make run-all
 - **Materials Project only.** No cross-database generalization (JARVIS, OQMD)
   in this version.
 - **Single GNN architecture.** ALIGNN only; equivariant models (MACE, NequIP)
-  deferred to future work.
+  deferred to future work. Tier 3's OOD degradation on sulfides is more severe
+  than Tier 1's (see Finding 10) — whether this is an artifact of the 3+3
+  depth or inherent to GNN OOD transfer warrants further investigation.
 - **Single seed for Tier 3.** Tiers 1–2 report mean ± std over 3 seeds;
   Tier 3 reports a single seed due to GPU training cost (~$70 for 6 runs).
 - **DFT properties, not experimental.** All target values are computed, not measured.
