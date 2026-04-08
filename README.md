@@ -1,5 +1,7 @@
 # crystal-prop-bench
 
+[![CI](https://github.com/tyy0811/crystal-prop-bench/actions/workflows/ci.yml/badge.svg)](https://github.com/tyy0811/crystal-prop-bench/actions/workflows/ci.yml)
+
 Materials property prediction with calibrated uncertainty and chemical domain-shift evaluation.
 
 ## Motivation
