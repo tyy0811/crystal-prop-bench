@@ -50,10 +50,16 @@ Following Mitchell et al. (2019) model card framework.
 | Tier | ID (oxide) MAE | OOD sulfide | OOD nitride | OOD halide |
 |------|---------------|-------------|-------------|------------|
 | Tier 1 | 0.123 | 0.280 (2.3x) | 0.578 (4.7x) | 0.754 (6.1x) |
+| Tier 2 | 0.129 | 0.274 (2.1x) | 0.798 (6.2x) | 0.682 (5.3x) |
 | Tier 3 | 0.059 | 0.918 (15.7x) | 0.379 (6.5x) | 0.262 (4.5x) |
 
-Tier 3 beats Tier 1 OOD on nitrides and halides but catastrophically fails on
-sulfides due to a systematic energy bias of +0.897 eV/atom (see Finding 10).
+Tier 2 (Voronoi) shows a similar degradation pattern to Tier 1 — modest on
+sulfides (2.1x), severe on nitrides (6.2x) and halides (5.3x). Tier 3 inverts
+this: it beats both Tier 1 and Tier 2 OOD on nitrides and halides but
+catastrophically fails on sulfides (15.7x) due to a systematic energy bias of
++0.897 eV/atom. The GNN learns oxide-specific energy corrections that
+anti-transfer to sulfides, while composition-only features avoid this failure
+mode (see Finding 10).
 
 ## Limitations
 
