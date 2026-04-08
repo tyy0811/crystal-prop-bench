@@ -18,20 +18,26 @@ def plot_domain_shift_bars(
 
     fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 
-    for ax, target in zip(axes, ["ef", "bg"]):
+    for ax, target in zip(axes, ["ef", "bg"], strict=True):
         target_df = df[df["target"] == target]
-        # Average over seeds
-        agg = target_df.groupby("ood_family").agg(
-            id_mae=("id_mae", "mean"),
-            ood_mae=("ood_mae", "mean"),
-        ).reset_index()
+        tiers = sorted(target_df["tier"].unique())
+        families = sorted(target_df["ood_family"].unique())
+        n_tiers = len(tiers)
+        x = np.arange(len(families))
+        width = 0.8 / max(n_tiers, 1)
+        colors = {"tier1": "#4C72B0", "tier2": "#DD8452", "tier3": "#55A868"}
 
-        x = np.arange(len(agg))
-        width = 0.35
-        ax.bar(x - width / 2, agg["id_mae"], width, label="ID (oxide)", color="#4C72B0")
-        ax.bar(x + width / 2, agg["ood_mae"], width, label="OOD", color="#DD8452")
+        for i, tier in enumerate(tiers):
+            tier_df = target_df[target_df["tier"] == tier]
+            agg = tier_df.groupby("ood_family").agg(
+                ood_mae=("ood_mae", "mean"),
+            ).reindex(families)
+            offset = (i - n_tiers / 2 + 0.5) * width
+            ax.bar(x + offset, agg["ood_mae"], width,
+                   label=tier, color=colors.get(tier, "#999999"))
+
         ax.set_xticks(x)
-        ax.set_xticklabels(agg["ood_family"])
+        ax.set_xticklabels(families)
         ax.set_ylabel("MAE")
         ax.set_title(f"{'Formation Energy' if target == 'ef' else 'Band Gap'}")
         ax.legend()

@@ -36,7 +36,7 @@ def build_benchmark_table(config: dict) -> pd.DataFrame:
     rows = []
     targets = config["evaluation"]["targets"]
 
-    for tier in ["tier1", "tier2", "tier1sub"]:
+    for tier in ["tier1", "tier2", "tier1sub", "tier3"]:
         for split in ["standard", "domshift"]:
             for target in targets:
                 target_short = "ef" if target == "formation_energy_per_atom" else "bg"
@@ -71,7 +71,7 @@ def build_domain_shift_table(config: dict) -> pd.DataFrame:
     rows = []
     targets = config["evaluation"]["targets"]
 
-    for tier in ["tier1", "tier2"]:
+    for tier in ["tier1", "tier2", "tier3"]:
         for target in targets:
             target_short = "ef" if target == "formation_energy_per_atom" else "bg"
 
@@ -118,7 +118,7 @@ def build_conformal_table(config: dict) -> pd.DataFrame:
     alphas = config["evaluation"]["alphas"]
     targets = config["evaluation"]["targets"]
 
-    for tier in ["tier1", "tier2"]:
+    for tier in ["tier1", "tier2", "tier3"]:
         for split in ["standard", "domshift"]:
             for target in targets:
                 target_short = "ef" if target == "formation_energy_per_atom" else "bg"
@@ -176,7 +176,7 @@ def build_calibration_sweep_table(config: dict) -> pd.DataFrame:
     alphas = config["evaluation"]["alphas"]
     targets = config["evaluation"]["targets"]
 
-    for tier in ["tier1", "tier2"]:
+    for tier in ["tier1", "tier2", "tier3"]:
         for target in targets:
             target_short = "ef" if target == "formation_energy_per_atom" else "bg"
 

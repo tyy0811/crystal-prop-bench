@@ -33,8 +33,11 @@ that would confound domain-shift analysis. The threshold was chosen to
 balance coverage (keeping most crystals) against purity (avoiding
 ambiguous classifications).
 
-**Dropped compounds:** [TO BE FILLED after data download — report count
-and percentage per family]
+**Dropped compounds:** 90,757 of 200,487 crystals (45.3%) from the
+Materials Project API query are dropped because they lack a dominant
+anion family at 80% purity (mixed-anion compounds, metals, intermetallics,
+etc.). The 109,730 classified crystals break down as: oxide 76,867 (70.1%),
+halide 16,540 (15.1%), sulfide 9,629 (8.8%), nitride 6,694 (6.1%).
 
 ## 4. Why Magpie descriptors
 
@@ -151,9 +154,9 @@ per structure on a single core. At 110K structures, serial featurization
 would require ~80 hours. Even with 8-core parallelism, the full set
 takes ~10 hours.
 
-Tier 2 subsamples oxides from ~77K to 15K (stratified random, seed=42)
+Tier 2 subsamples oxides from ~77K to 25K (stratified random, seed=42)
 while keeping all minority families (sulfide, nitride, halide) intact.
-Total Tier 2 dataset: ~48K structures. Rationale:
+Total Tier 2 dataset: ~58K structures. Rationale:
 
 - **LightGBM convergence is unchanged at this scale.** Gradient-boosted
   trees plateau well below 15K training samples for tabular features.
@@ -161,3 +164,141 @@ Total Tier 2 dataset: ~48K structures. Rationale:
   sets; subsampling would weaken the domain-shift evaluation.
 - **Tier 1 (Magpie) runs on the full 110K dataset.** Only Tier 2
   is subsampled, so the composition-only baseline remains unaffected.
+
+## 16. Stratified domain-shift split to reduce R² variance
+
+The original `domain_shift_split` did not stratify oxide partitions by
+target value — all samples were oxides, so chemistry-family
+stratification (used in `standard_split`) was meaningless. This caused
+high seed-to-seed R² variance for Tier 2 domain-shift formation energy:
+**R² = 0.837 ± 0.103** (per-seed ID MAE ranged from 0.117 to 0.150).
+
+**Root cause:** With only ~15K oxides going through a 70/10/10/10 split,
+different seeds placed easy or hard oxides into very different
+partitions. R² is especially sensitive because its denominator is total
+y-variance in the test set.
+
+**Fix applied in two stages:**
+
+1. **Option A — Stratify by target quartile.** Added `stratify_col`
+   parameter to `domain_shift_split`. Bins the target column into
+   quartiles via `pd.qcut` and passes them as `stratify=` to all three
+   `train_test_split` calls. Falls back to unstratified if any bin has
+   fewer than 2 members (handles small fixtures). This is exactly what
+   `standard_split` already did via chemistry-family stratification.
+
+   **Result:** R² std dropped from **0.103 → 0.048** (53% reduction).
+   MAE std halved (0.017 → 0.007). Improvement was significant but
+   R² std remained above the ~0.03 target.
+
+2. **Option B — Increase oxide subsample from 15K to 25K.** Since
+   stratification alone did not fully stabilize R², the oxide subsample
+   was expanded. Voronoi features for the additional ~10K oxides were
+   computed incrementally and merged into the existing cache. Larger
+   training and test sets mechanically reduce seed sensitivity.
+
+**Final measured results (Tier 2 domshift formation energy, test_id):**
+
+| Stage                          | R² std | MAE std |
+|--------------------------------|--------|---------|
+| Original (unstratified, 15K)   | 0.103  | 0.017   |
+| + Option A (stratified, 15K)   | 0.048  | 0.007   |
+| + Option B (stratified, 25K)   | 0.040  | 0.002   |
+
+R² std reduced 61% overall. MAE std collapsed to 0.002, matching
+Tier 1 stability. Remaining R² spread (0.040) is driven by squared-error
+sensitivity to a few outlier crystals in one seed's test partition —
+the MAE stability confirms the model itself is stable across seeds.
+
+**Alternative considered and rejected:** Adding more seeds (5 instead
+of 3) was rejected because it averages over the same broken split
+rather than fixing the partition-quality problem.
+
+## 17. Why ALIGNN over vanilla CGCNN
+
+ALIGNN (Atomistic Line Graph Neural Network) adds bond-angle
+information via a line graph on top of the standard atom graph.
+This is physically motivated: band gap depends on electronic
+structure (geometry-sensitive), and angular features capture
+coordination geometry more robustly than Voronoi hand-crafted
+statistics or the distance-only edge features in CGCNN.
+
+ALIGNN connects to the equivariant architecture family
+(MACE, NequIP) used in production crystal generation pipelines.
+Vanilla CGCNN (2018) would demonstrate "I learned the baseline"
+rather than "I understand the geometric deep learning progression."
+
+The `alignn` package from NIST/JARVIS provides a battle-tested
+implementation with published benchmark numbers for comparison.
+
+## 18. Why 8.0 Angstrom cutoff with 12 nearest neighbors
+
+Standard in crystal GNN literature (Xie & Grossman 2018, Choudhary
+& DeCost 2021). The 8.0 A radius captures second-shell neighbors for
+most crystal structures. Capping at 12 neighbors controls graph
+density and keeps memory usage predictable across structures with
+varying coordination environments.
+
+This cutoff was held fixed even when training cost became a concern
+(see Decision 22) — changing it would break the experimental contract
+with Tiers 1–2 and require rerunning all evaluations.
+
+## 19. Why mean pooling for intensive properties
+
+Formation energy per atom and band gap are intensive properties
+(independent of system size). Sum pooling would create a spurious
+correlation with the number of atoms, biasing predictions for
+larger unit cells. Mean pooling is the standard choice for
+intensive property prediction in crystal GNNs.
+
+## 20. Hybrid implementation: import architecture, own pipeline
+
+The benchmark's contribution is evaluating a GNN under domain shift
+with conformal prediction, not reimplementing message passing.
+Importing the ALIGNN model class from the `alignn` package while
+writing our own graph construction, training loop, and prediction
+export keeps the evaluation seam clean: training writes prediction
+parquets, evaluation reads them — same contract as Tiers 1-2.
+
+## 21. GPU selection and memory constraints for ALIGNN training
+
+Crystal graphs built with an 8.0 A cutoff and 12 nearest neighbors
+are extremely dense — large unit cells produce graphs with thousands
+of edges, and ALIGNN's line graph doubles this (one line graph node
+per atom graph edge). Edge features (80-dim) and triplet features
+(40-dim) make memory scale super-linearly with graph density.
+
+**Tested and rejected:**
+- T4 (16GB) with batch_size=128: OOM.
+- A10G (24GB) with batch_size=128: OOM (19.5GB allocated).
+- A100 40GB with batch_size=128: OOM (37GB allocated, needed
+  2.25GB more). The few largest structures in a batch dominate.
+
+**Chosen: A100 80GB with batch_size=128.** Peak memory ~40GB,
+fits within 80GB with headroom.
+
+## 22. ALIGNN depth 3+3 and training schedule for cost control
+
+The standard ALIGNN configuration (4+4 layers, 200 epochs,
+patience=30) is too slow for 18 training runs on 47K structures
+— each run takes 30-60 min even on A100, totalling 9-18 hours.
+
+**Levers that don't break the experimental contract:**
+Dataset size, cutoff, and max_neighbors are methodological
+choices documented in Decisions 15, 18 — changing them would
+invalidate the Tier 1/2/3 comparison.
+
+**Changes applied:**
+- **Layers 4+4 → 3+3.** 3 ALIGNN + 3 GCN is a published
+  configuration (Choudhary & DeCost 2021 ablations) that
+  captures most of the angular feature benefit at ~60% compute.
+- **Epochs 200 → 80.** ALIGNN typically converges within 40-60
+  epochs on materials property tasks. 80 provides headroom.
+- **Patience 30 → 10.** Stops earlier once validation plateaus.
+  No quality impact for converged models.
+- **Scheduler patience 10 → 5.** Faster LR reduction.
+- **DataLoader num_workers=4.** Prevents CPU-side data loading
+  from bottlenecking GPU utilization.
+
+**Combined speedup: ~4-5× per run.** Estimated total training
+time ~3-5 hours on A100 80GB.

@@ -103,7 +103,7 @@ def main() -> None:
     # Subsample oxides to 15K; keep all minority families intact.
     # LightGBM convergence is unchanged at this scale, and it reduces
     # Voronoi featurization from ~80 hours to ~2 hours.
-    OXIDE_SUBSAMPLE = 15000
+    OXIDE_SUBSAMPLE = 25000
     oxides = df_full[df_full["chemistry_family"] == "oxide"]
     minorities = df_full[df_full["chemistry_family"] != "oxide"]
     if len(oxides) > OXIDE_SUBSAMPLE:
@@ -164,7 +164,7 @@ def main() -> None:
                     "tier1sub", "standard", "test", model_params,
                 )
 
-            splits = domain_shift_split(df_voronoi, seed=seed)
+            splits = domain_shift_split(df_voronoi, seed=seed, stratify_col=target)
 
             with mlflow.start_run(run_name=f"tier2_domshift_{target}_seed{seed}"):
                 mlflow.log_params({"tier": 2, "split": "domain_shift", "target": target, "seed": seed})
