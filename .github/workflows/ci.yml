@@ -34,7 +34,6 @@ jobs:
   integration:
     runs-on: ubuntu-latest
     needs: test
-    if: hashFiles('tests/fixtures/fixture_crystals.parquet') != ''
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -47,7 +46,6 @@ jobs:
   regression-gate:
     runs-on: ubuntu-latest
     needs: integration
-    if: hashFiles('tests/fixtures/fixture_crystals.parquet') != ''
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
